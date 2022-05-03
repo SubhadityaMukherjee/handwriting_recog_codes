@@ -54,10 +54,17 @@ def create_image(label, img_size):
 
     return np.array(img)
 
-#TODO Add transforms here
+# Define the transformation pipeline, including:
+# - Brightness
+# - Elastic transform
+# - Affine transform
+# - Gaussian blur
+
 transform = A.Compose([
-    A.HorizontalFlip(p=0.5),
-    A.RandomBrightnessContrast(p=0.5),
+    A.RandomBrightnessContrast(p=0.5), 
+    A.ElasticTransform(p=0.5, alpha=10, sigma=120 * 0.05, alpha_affine=120 * 0.03), 
+    A.Affine(rotate=(-10, 10), shear=(-0.5, 0.5), scale=(0.9, 1.2), p=0.5), 
+    A.GaussianBlur(p=0.5) 
 ])
 
 # Create a folder to store the images, generate the images with transforms for every character and save them to their respective folders
@@ -66,5 +73,5 @@ for name in char_map.keys(): # the dictionary
     for i in range(50): #TODO See if change
         transformed = transform(image=img)["image"] # apply a random transform
         if not Path.exists(Path(Path("new_data")/name)): # create a folder for the character
-            os.mkdir(f"new_data/{name}")
+            os.makedirs(f"new_data/{name}") 
         Image.fromarray(transformed).save(f'new_data/{name}/{str(i)}.png')

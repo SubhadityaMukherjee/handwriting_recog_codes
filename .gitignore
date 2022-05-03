@@ -19,3 +19,4 @@ tags
 data/
 *.h5
 new_data/
+.venv/
