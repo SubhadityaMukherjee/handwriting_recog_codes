@@ -24,7 +24,7 @@ from sklearn.model_selection import train_test_split
 from tensorflow.keras import layers
 
 """
-This is the training code
+This is the training code for Dead Sea scrolls character recognition
 """
 
 # %%
