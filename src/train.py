@@ -23,6 +23,10 @@ from tensorflow import keras
 from sklearn.model_selection import train_test_split
 from tensorflow.keras import layers
 
+"""
+This is the training code
+"""
+
 # %%
 # Define defaults
 # TODO: Change to args
@@ -38,18 +42,20 @@ labelmap, labels = label_to_dict(labels)
 print(f"Total no of unique labels : {len(set(labels))}")
 print(len(images))
 print(images[:3], labels[:3])
+# Train test split
 x_train, x_test, y_train, y_test = train_test_split(
     images, labels, test_size=0.2, random_state=1337)
 print(len(x_train), len(y_train))
 print(len(x_test), len(y_test))
 
-# Read dataset
+# Convert to tf.data
 train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
 test_dataset = tf.data.Dataset.from_tensor_slices((x_test, y_test))
+# Prefetch data, shuffle, batch
 train_dataset = train_dataset.shuffle(100).batch(batch_size).cache().prefetch(AUTOTUNE)
 test_dataset = test_dataset.batch(batch_size).cache().prefetch(AUTOTUNE)
 # %%
-# Add data aug
+#TODO Add data aug
 # data_augmentation = keras.Sequential(
 #     [
 
@@ -58,7 +64,7 @@ test_dataset = test_dataset.batch(batch_size).cache().prefetch(AUTOTUNE)
 
 def make_model(input_shape, num_classes):
     """
-    Just a placeholder model
+    Just a placeholder classification model. Need to modify
     """
     model = tf.keras.Sequential([
         # data_augmentation,

@@ -46,7 +46,8 @@ cv2.imwrite('test_image.png',image)
 ret,thresh = cv2.threshold(gray,127,255,cv2.THRESH_BINARY_INV)
 
 #dilation
-kernel = np.ones((5,5), np.uint8)
+kernel = np.ones((5,100), np.uint8)
+# 5,100 for line, 5.5 for character
 img_dilation = cv2.dilate(thresh, kernel, iterations=1)
 
 cv2.imwrite('dilated.png',img_dilation)
