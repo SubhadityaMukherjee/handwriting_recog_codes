@@ -4,11 +4,15 @@ import albumentations as A
 import os
 from pathlib import Path
 import numpy as np
+import cv2
 
 # Generate a dataset of images using the specified font
 
 #Load the font and set the font size to 42
 font = ImageFont.truetype('Habbakuk.TTF', 42)
+
+# Set kernel
+kernel = np.ones((5,5), np.uint8)
 
 #Character mapping for each of the 27 tokens
 char_map = {'Alef' : ')', 
@@ -59,12 +63,12 @@ def create_image(label, img_size):
 # - Elastic transform
 # - Affine transform
 # - Gaussian blur
-
+# TODO: add dilute and erode transformations
 transform = A.Compose([
     A.RandomBrightnessContrast(p=0.5), 
     A.ElasticTransform(p=0.5, alpha=10, sigma=120 * 0.05, alpha_affine=120 * 0.03), 
-    A.Affine(rotate=(-10, 10), shear=(-0.5, 0.5), scale=(0.9, 1.2), p=0.5), 
-    A.GaussianBlur(p=0.5) 
+    A.Affine(rotate=(-10, 10), shear=(-0.5, 0.5), scale=(0.9, 1.2), cval=255, p=0.5), 
+    A.GaussianBlur(p=0.5)
 ])
 
 # Create a folder to store the images, generate the images with transforms for every character and save them to their respective folders
