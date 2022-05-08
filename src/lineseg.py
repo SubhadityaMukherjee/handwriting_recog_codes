@@ -24,51 +24,55 @@ import tensorflow as tf
 from tensorflow import keras
 from sklearn.model_selection import train_test_split
 from tensorflow.keras import layers
-
+import sys
 # %%
 # Define defaults
 # TODO: Change to args
 main_path = Path(
-    "/media/hdd/github/handwriting_recog_codes/data/image-data/image-data/")
+    "/Users/leozotos/Documents/Study/Master/1st Year/2B/HWR/handwriting_recog_codes/src/data/image-data")
 # %%
 list_of_binarized = [str(main_path/x)
                      for x in os.listdir(main_path) if "binarized" in x]
 test_im = list_of_binarized[0]
 # %%
+raw_image = cv2.imread(test_im)
+(thresh, image) = cv2.threshold(cv2.cvtColor(raw_image, cv2.COLOR_BGR2GRAY), 127, 255, cv2.THRESH_BINARY)
+
+cv2.imwrite('test_image.png', image)
+# %%
+# Cutting to vertical stripes
+numOfStripes = 2
+numOfBlocks = 20 # that's the maximum number of lines
+rowsPerBlock = 400 # max rows of pixels per block
+pixelThreshold = 50
+height, width = np.shape(image)
+stripeWidth = width // numOfStripes
+stripesArr = np.empty((numOfStripes, height, stripeWidth))
+
+for i in range(numOfStripes): # Cut into stripes
+    stripesArr[i] = image[:, (i*stripeWidth):(i+1)*stripeWidth]
+
+allBlocks = np.full((numOfStripes, numOfBlocks, rowsPerBlock, stripeWidth), 255) # 4D array that will hold all blocks, set white background
+for stripe in range(numOfStripes): 
+    currentBlock = 0
+    currentRowInBlock = 0
+    for row_index, row in enumerate(stripesArr[stripe]):
+        
+        if np.count_nonzero(stripesArr[stripe, row_index] == 0) > pixelThreshold: # If this line has >10 black pixels, it is a line of text
+            allBlocks[stripe, currentBlock, currentRowInBlock] = stripesArr[stripe, row_index]
+            # cv2.imwrite("randomline.png", stripesArr[stripe, row])
+            currentRowInBlock += 1
+        else: # Create a new block, but only if the current block is an empty block.
+            if not np.all(allBlocks[stripe, currentBlock] == 255):
+                currentBlock += 1
+                currentRowInBlock = 0
 
 
-image = cv2.imread(test_im)
-gray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
-
-cv2.imwrite('test_image.png',image)
-
-#binary
-ret,thresh = cv2.threshold(gray,127,255,cv2.THRESH_BINARY_INV)
-
-#dilation
-kernel = np.ones((5,100), np.uint8)
-# 5,100 for line, 5.5 for character
-img_dilation = cv2.dilate(thresh, kernel, iterations=1)
-
-cv2.imwrite('dilated.png',img_dilation)
-
-#find contours
-ctrs, hier = cv2.findContours(img_dilation.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-#sort contours
-sorted_ctrs = sorted(ctrs, key=lambda ctr: cv2.boundingRect(ctr)[0])
-
-for i, ctr in enumerate(sorted_ctrs):
-    # Get bounding box
-    x, y, w, h = cv2.boundingRect(ctr)
-
-    # Getting ROI
-    roi = image[y:y+h, x:x+w]
-
-    cv2.rectangle(image,(x,y),( x + w, y + h ),(90,0,255),2)
-    # TODO Add the model output here to these crops and get the output of it
-
-
-cv2.imwrite('final_bounded_box_image.png',image)
-# cv2.imshow('marked areas',image)
-# cv2.waitKey(0)
+#Concatenate blocks: 
+for line in range (numOfBlocks):
+    concatenatedBlock = np.concatenate((allBlocks[0, line], allBlocks[1, line]), axis=1)
+    if np.count_nonzero(concatenatedBlock == 0) > (2 * pixelThreshold): #Only store it if it has a lot of black pixels.
+        linePath = 'lines/'
+        nameOfOutput = "line" + str(line)+".png"
+        cv2.imwrite(os.path.join(linePath , nameOfOutput), concatenatedBlock)
+        
