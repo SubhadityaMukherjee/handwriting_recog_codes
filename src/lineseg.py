@@ -28,8 +28,7 @@ import sys
 # %%
 # Define defaults
 # TODO: Change to args
-main_path = Path(
-    "/Users/leozotos/Documents/Study/Master/1st Year/2B/HWR/handwriting_recog_codes/src/data/image-data")
+main_path = Path("data/image-data")
 # %%
 list_of_binarized = [str(main_path/x)
                      for x in os.listdir(main_path) if "binarized" in x]
@@ -37,14 +36,47 @@ test_im = list_of_binarized[0]
 # %%
 raw_image = cv2.imread(test_im)
 (thresh, image) = cv2.threshold(cv2.cvtColor(raw_image, cv2.COLOR_BGR2GRAY), 127, 255, cv2.THRESH_BINARY)
-
 cv2.imwrite('test_image.png', image)
+
+#################### keep only main text/ delete most white space around the text
+cropPixelThreshold = 10
+rowTopBoundary = rowBotBoundary = colLeftBoundary = colRightBoundary = 0
+
+height, width = np.shape(image)
+for rowIndex in range(height): # Remove top white space
+    if np.count_nonzero(image[rowIndex] == 0) < cropPixelThreshold:
+       rowTopBoundary = rowIndex
+    else: break
+image = np.delete(image, slice(0, rowTopBoundary), 0)
+
+height, width = np.shape(image)
+for rowIndex in range(height):# Remove top white space
+    if np.count_nonzero(image[height-rowIndex - 1] == 0) < cropPixelThreshold:
+        rowBotBoundary = rowIndex
+    else: break
+image = np.delete(image, slice(height-rowBotBoundary, height), 0)
+
+height, width = np.shape(image)
+for colIndex in range(width):# Remove left white space
+    if np.count_nonzero(image[:, colIndex] == 0) < cropPixelThreshold:
+       colLeftBoundary = colIndex
+    else: break
+image = np.delete(image, slice(0, colLeftBoundary), 1)
+
+height, width = np.shape(image)
+for colIndex in range(width):# Remove right white space
+    if np.count_nonzero(image[:, width-colIndex - 1] == 0) < cropPixelThreshold:
+        colRightBoundary = colIndex
+    else: break
+image = np.delete(image, slice(width-colRightBoundary, width), 1)
+
+# ####################
 # %%
 # Cutting to vertical stripes
-numOfStripes = 2
-numOfBlocks = 20 # that's the maximum number of lines
+numOfStripes = 3
+pixelThreshold = 30
+numOfBlocks = 40 # that's the maximum number of lines
 rowsPerBlock = 400 # max rows of pixels per block
-pixelThreshold = 50
 height, width = np.shape(image)
 stripeWidth = width // numOfStripes
 stripesArr = np.empty((numOfStripes, height, stripeWidth))
@@ -69,10 +101,15 @@ for stripe in range(numOfStripes):
 
 
 #Concatenate blocks: 
-for line in range (numOfBlocks):
-    concatenatedBlock = np.concatenate((allBlocks[0, line], allBlocks[1, line]), axis=1)
-    if np.count_nonzero(concatenatedBlock == 0) > (2 * pixelThreshold): #Only store it if it has a lot of black pixels.
+if not os.path.exists("lines/"):
+      os.makedirs("lines/")
+
+for textLine in range (numOfBlocks):
+    concatenatedBlock = allBlocks[0, textLine]
+    for stripe in range(numOfStripes - 1):
+        concatenatedBlock = np.concatenate((concatenatedBlock, allBlocks[stripe + 1, textLine]), axis = 1)
+
+    if np.count_nonzero(concatenatedBlock == 0) > (numOfStripes * pixelThreshold): # Only store it if it has a lot of black pixels.
         linePath = 'lines/'
-        nameOfOutput = "line" + str(line)+".png"
+        nameOfOutput = "line" + str(textLine) + ".png"
         cv2.imwrite(os.path.join(linePath , nameOfOutput), concatenatedBlock)
-        
