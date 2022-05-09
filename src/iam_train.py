@@ -46,7 +46,7 @@ characters = set()
 max_len = 0
 
 for label in y_train:
-    label = label.split(" ")[-1].strip()
+    # label = label.split(" ")[-1].strip()
     for char in label:
         characters.add(char)
 
@@ -116,9 +116,9 @@ def distortion_free_resize(image, img_size):
 #%%
 def preprocess_image(image, img_size=image_size):
     # print(image_path)
-    # image = tf.io.read_file(image_path)
-    # image = tf.image.decode_png(image, 1)
-    # image = distortion_free_resize(image, img_size)
+    image = tf.io.read_file(image)
+    image = tf.image.decode_png(image, 1)
+    image = distortion_free_resize(image, img_size)
     image = tf.cast(image, tf.float32) / 255.0
     return image
 
@@ -155,10 +155,12 @@ for data in train_ds.take(1):
 
     for i in range(16):
         img = images[i]
-        # img = tf.image.flip_left_right(img)
-        # img = tf.transpose(img, perm=[1, 0, 2])
-        # img = (img * 255.0).numpy().clip(0, 255).astype(np.uint8)
-        # img = img[:, :, 0]
+        # img = img.expand_dims(0)
+        # img = tf.expand_dims(img, -1)
+        img = tf.image.flip_left_right(img)
+        img = tf.transpose(img, perm=[1, 0, 2])
+        img = (img * 255.0).numpy().clip(0, 255).astype(np.uint8)
+        img = img[:, :, 0]
         # img = img.expand_dims(0)
 
         # Gather indices where label!= padding_token.
@@ -190,6 +192,7 @@ class CTCLayer(keras.layers.Layer):
 
         # At test time, just return the computed predictions.
         return y_pred
+
 def build_model():
     # Inputs to the model
     input_img = keras.Input(shape=(image_width, image_height, 1), name="image")

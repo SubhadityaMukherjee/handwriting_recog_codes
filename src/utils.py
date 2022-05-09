@@ -49,7 +49,8 @@ def iam_data_reader(images_path, labels_path, image_size, subset = None):
         for line in tqdm(full_text, total=len(full_text)):
             if "png" in line:
                 fname = os.path.join(images_path, line.strip())
-                images.append(np.array(Image.open(fname).convert("L").resize(image_size, Image.Resampling.BILINEAR)))
+                # images.append(np.array(Image.open(fname).convert("L").resize(image_size, Image.Resampling.BILINEAR)))
+                images.append(fname)
             elif len(line) > 1:
                 labels.append(line.strip())
             else:
