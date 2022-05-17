@@ -47,7 +47,7 @@ print(len(x_test), len(y_test))
 # Get vocabulary size
 train_labels_cleaned, max_len, characters = vocabulary_size(y_train)
 test_labels_cleaned = clean_labels(y_test)
-train_labels_cleaned[:10]
+print(train_labels_cleaned[:10])
 # Mapping characters to integers.
 char_to_num = StringLookup(vocabulary=list(characters), mask_token=None)
 # Mapping integers back to original characters.
@@ -92,6 +92,47 @@ validation_labels = []
 for batch in test_ds:
     validation_images.append(batch["image"])
     validation_labels.append(batch["label"])
+
+
+def calculate_edit_distance(labels, predictions):
+    # Get a single batch and convert its labels to sparse tensors.
+    saprse_labels = tf.cast(tf.sparse.from_dense(labels), dtype=tf.int64)
+
+    # Make predictions and convert them to sparse tensors.
+    input_len = np.ones(predictions.shape[0]) * predictions.shape[1]
+    predictions_decoded = keras.backend.ctc_decode(
+        predictions, input_length=input_len, greedy=True
+    )[0][0][:, :max_len]
+    sparse_predictions = tf.cast(
+        tf.sparse.from_dense(predictions_decoded), dtype=tf.int64
+    )
+
+    # Compute individual edit distances and average them out.
+    edit_distances = tf.edit_distance(
+        sparse_predictions, saprse_labels, normalize=False
+    )
+    return tf.reduce_mean(edit_distances)
+
+
+class EditDistanceCallback(keras.callbacks.Callback):
+    def __init__(self, pred_model):
+        super().__init__()
+        self.prediction_model = pred_model
+
+    def on_epoch_end(self, epoch, logs=None):
+        edit_distances = []
+
+        for i in range(len(validation_images)):
+            labels = validation_labels[i]
+            predictions = self.prediction_model.predict(validation_images[i])
+            edit_distances.append(calculate_edit_distance(
+                labels, predictions).numpy())
+
+        print(
+            f"Mean edit distance for epoch {epoch + 1}: {np.mean(edit_distances):.4f}"
+        )
+#%%
+model.summary()
 
 # %%
 epochs = 10  # To get good results this should be at least 50.

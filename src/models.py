@@ -25,6 +25,7 @@ class CTCLayer(keras.layers.Layer):
         batch_len = tf.cast(tf.shape(y_true)[0], dtype="int64")
         input_length = tf.cast(tf.shape(y_pred)[1], dtype="int64")
         label_length = tf.cast(tf.shape(y_true)[1], dtype="int64")
+        print(batch_len, input_length, label_length)
 
         input_length = input_length * \
             tf.ones(shape=(batch_len, 1), dtype="int64")
@@ -37,44 +38,6 @@ class CTCLayer(keras.layers.Layer):
         return y_pred
 
 #%%
-def calculate_edit_distance(labels, predictions):
-    # Get a single batch and convert its labels to sparse tensors.
-    saprse_labels = tf.cast(tf.sparse.from_dense(labels), dtype=tf.int64)
-
-    # Make predictions and convert them to sparse tensors.
-    input_len = np.ones(predictions.shape[0]) * predictions.shape[1]
-    predictions_decoded = keras.backend.ctc_decode(
-        predictions, input_length=input_len, greedy=True
-    )[0][0][:, :max_len]
-    sparse_predictions = tf.cast(
-        tf.sparse.from_dense(predictions_decoded), dtype=tf.int64
-    )
-
-    # Compute individual edit distances and average them out.
-    edit_distances = tf.edit_distance(
-        sparse_predictions, saprse_labels, normalize=False
-    )
-    return tf.reduce_mean(edit_distances)
-
-
-class EditDistanceCallback(keras.callbacks.Callback):
-    def __init__(self, pred_model):
-        super().__init__()
-        self.prediction_model = pred_model
-
-    def on_epoch_end(self, epoch, logs=None):
-        edit_distances = []
-
-        for i in range(len(validation_images)):
-            labels = validation_labels[i]
-            predictions = self.prediction_model.predict(validation_images[i])
-            edit_distances.append(calculate_edit_distance(
-                labels, predictions).numpy())
-
-        print(
-            f"Mean edit distance for epoch {epoch + 1}: {np.mean(edit_distances):.4f}"
-        )
-
 
 #%%
 def simple_iam(params):
@@ -132,6 +95,7 @@ def simple_iam(params):
     x = keras.layers.Dense(
         len(char_to_num.get_vocabulary()) + 2, activation="softmax", name="dense2"
     )(x)
+    print("labels", labels)
 
     # Add CTC layer for calculating CTC loss at each step.
     output = CTCLayer(name="ctc_loss")(labels, x)
