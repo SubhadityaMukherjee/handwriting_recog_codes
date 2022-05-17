@@ -32,7 +32,7 @@ This is the training code for Dead Sea scrolls character recognition
 # %%
 # Define defaults
 # TODO: Change to args
-main_path = Path("../data/")
+main_path = Path("data/")
 dss_path = main_path / "monkbrill"
 # print(dss_path)
 batch_size = 200
@@ -71,18 +71,29 @@ test_dataset = test_dataset.batch(batch_size)
 #     ]
 # )
 
-def make_model(input_shape, num_classes):
+def make_model():
     """
     Just a placeholder classification model. Need to modify
     """
     model = tf.keras.Sequential([
+        tf.keras.layers.Conv2D(32, kernel_size=(3, 3),
+                 activation='relu',
+                 input_shape=(28,28,1)),
+        tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+        tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
+        tf.keras.layers.Dropout(0.25),
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(128, activation='relu'),
+        tf.keras.layers.Dropout(0.5),
+        tf.keras.layers.Dense(27, activation='softmax')
+
         # keras.Input(shape=(None,28,28,1), name="image"),
-        tf.keras.layers.Conv2D(28, (3, 3), activation='relu', input_shape=(28, 28, 1)),
+        #tf.keras.layers.Conv2D(28, (3, 3), activation='relu', input_shape=(28, 28, 1)),
         # tf.keras.layers.Conv2D(filters=32, kernel_size=(3, 3), activation='relu'),
         # tf.keras.layers.MaxPooling2D((2, 2)),
         # tf.keras.layers.Flatten(128),
         # tf.keras.layers.Dense(128, activation='relu'),
-        tf.keras.layers.Dense(num_classes, activation='softmax')
+        #tf.keras.layers.Dense(num_classes, activation='softmax')
 
         # tf.keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=input_shape),
         # tf.keras.layers.MaxPooling2D((2, 2), strides=2),
@@ -98,30 +109,29 @@ def make_model(input_shape, num_classes):
     return model
 
 
+model = make_model()
 
-# model = make_model((28, 28), 27)
-
-model = tf.keras.Sequential()
-#convolutional layer with rectified linear unit activation
-model.add(Conv2D(32, kernel_size=(3, 3),
-                 activation='relu',
-                 input_shape=(28,28,1)))
-#32 convolution filters used each of size 3x3
-#again
-model.add(Conv2D(64, (3, 3), activation='relu'))
-#64 convolution filters used each of size 3x3
-#choose the best features via pooling
-model.add(MaxPooling2D(pool_size=(2, 2)))
-#randomly turn neurons on and off to improve convergence
-model.add(Dropout(0.25))
-#flatten since too many dimensions, we only want a classification output
-model.add(Flatten())
-#fully connected to get all relevant data
-model.add(Dense(128, activation='relu'))
-#one more dropout for convergence' sake :) 
-model.add(Dropout(0.5))
-#output a softmax to squash the matrix into output probabilities
-model.add(Dense(27, activation='softmax'))
+# model = tf.keras.Sequential()
+# #convolutional layer with rectified linear unit activation
+# model.add(Conv2D(32, kernel_size=(3, 3),
+#                  activation='relu',
+#                  input_shape=(28,28,1)))
+# #32 convolution filters used each of size 3x3
+# #again
+# model.add(Conv2D(64, (3, 3), activation='relu'))
+# #64 convolution filters used each of size 3x3
+# #choose the best features via pooling
+# model.add(MaxPooling2D(pool_size=(2, 2)))
+# #randomly turn neurons on and off to improve convergence
+# model.add(Dropout(0.25))
+# #flatten since too many dimensions, we only want a classification output
+# model.add(Flatten())
+# #fully connected to get all relevant data
+# model.add(Dense(128, activation='relu'))
+# #one more dropout for convergence' sake :) 
+# model.add(Dropout(0.5))
+# #output a softmax to squash the matrix into output probabilities
+# model.add(Dense(27, activation='softmax'))
 
 print(model.summary())
 
