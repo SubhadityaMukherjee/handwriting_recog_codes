@@ -30,7 +30,7 @@ This is the training code for Dead Sea scrolls character recognition
 # %%
 # Define defaults
 # TODO: Change to args
-main_path = Path("/media/hdd/github/handwriting_recog_codes/data/")
+main_path = Path("data/")
 dss_path = main_path / "monkbrill"
 batch_size = 200
 image_size = (28, 28, 1)
@@ -38,10 +38,12 @@ AUTOTUNE = tf.data.AUTOTUNE
 
 # Read data
 images, labels = load_images_to_array(dss_path)
+print(images[0].shape)
 labelmap, labels = label_to_dict(labels)
 print(f"Total no of unique labels : {len(set(labels))}")
 print(len(images))
 print(images[:3], labels[:3])
+
 # Train test split
 x_train, x_test, y_train, y_test = train_test_split(
     images, labels, test_size=0.2, random_state=1337)
@@ -51,9 +53,11 @@ print(len(x_test), len(y_test))
 # Convert to tf.data
 train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
 test_dataset = tf.data.Dataset.from_tensor_slices((x_test, y_test))
+
 # Prefetch data, shuffle, batch
 train_dataset = train_dataset.shuffle(100).batch(batch_size).cache().prefetch(AUTOTUNE)
 test_dataset = test_dataset.batch(batch_size).cache().prefetch(AUTOTUNE)
+
 # %%
 #TODO Add data aug
 # data_augmentation = keras.Sequential(
@@ -68,20 +72,35 @@ def make_model(input_shape, num_classes):
     """
     model = tf.keras.Sequential([
         # data_augmentation,
+        tf.keras.layers.Conv2D(filters=32, kernel_size=(3, 3), activation='relu', input_shape=(28, 28)),
         tf.keras.layers.Flatten(input_shape=(28, 28)),
         tf.keras.layers.Dense(128, activation='relu'),
         tf.keras.layers.Dense(num_classes, activation='softmax')
+
+        # tf.keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=input_shape),
+        # tf.keras.layers.MaxPooling2D((2, 2), strides=2),
+        # tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same'),
+        # tf.keras.layers.MaxPooling2D((2, 2), strides=2),
+        # tf.keras.layers.Conv2D(filters=128, kernel_size=(3,3), activation='relu', padding='valid'),
+        # tf.keras.layers.MaxPooling2D((2, 2), strides=2),
+        # tf.keras.layers.Flatten(),
+        # tf.keras.layers.Dense(64, activation='relu'),
+        # tf.keras.layers.Dense(128, activation='relu'),
+        # tf.keras.layers.Dense(26, activation='softmax')
     ])
     return model
 
 
 model = make_model((28, 28), 27)
 
+print(model.summary())
+
 model.compile(optimizer=tf.keras.optimizers.RMSprop(),
               loss=tf.keras.losses.SparseCategoricalCrossentropy(),
               metrics=[
                   tf.keras.metrics.SparseCategoricalAccuracy()
 ])
+
 model.fit(train_dataset, epochs=20, callbacks=[
     tf.keras.callbacks.ModelCheckpoint("./logs/save_at_{epoch}.h5"),
 ],

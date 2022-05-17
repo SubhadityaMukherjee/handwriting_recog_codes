@@ -30,7 +30,7 @@ def load_images_to_array(dss_path):
         for file in files:
             if file.endswith(".pgm"):
                 fname = os.path.join(root, file)
-                images.append(np.array(Image.open(fname).convert("L").resize(
+                images.append(np.array(Image.open(fname).resize(
                     (28, 28), Image.Resampling.BILINEAR)))  # Biliear is good sampling
                 # print(images.shape)
                 # get the last folder name as label

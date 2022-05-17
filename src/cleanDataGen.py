@@ -9,7 +9,7 @@ import cv2
 # Generate a dataset of images using the specified font
 
 #Load the font and set the font size to 42
-font = ImageFont.truetype('Habbakuk.TTF', 42)
+font = ImageFont.truetype('Habbakuk.TTF', 42) # FIXME: only works in src folder right now, fix this 
 
 # Set kernel
 kernel = np.ones((5,5), np.uint8)
