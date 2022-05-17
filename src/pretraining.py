@@ -135,3 +135,5 @@ model.fit(train_dataset, epochs=20, callbacks=[
     tf.keras.callbacks.ModelCheckpoint("./logs/save_at_{epoch}.h5"),
 ],
 )
+
+# %%

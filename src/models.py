@@ -25,13 +25,13 @@ class CTCLayer(keras.layers.Layer):
         batch_len = tf.cast(tf.shape(y_true)[0], dtype="int64")
         input_length = tf.cast(tf.shape(y_pred)[1], dtype="int64")
         label_length = tf.cast(tf.shape(y_true)[1], dtype="int64")
-        print(batch_len, input_length, label_length)
+        # print(batch_len, tf.shape(y_true), tf.shape(y_pred))
 
         input_length = input_length * \
             tf.ones(shape=(batch_len, 1), dtype="int64")
         label_length = label_length * \
             tf.ones(shape=(batch_len, 1), dtype="int64")
-        loss = self.loss_fn(y_true, y_pred, input_length, label_length)
+        loss = self.loss_fn(y_true, y_pred, input_length, label_length, )
         self.add_loss(loss)
 
         # At test time, just return the computed predictions.
@@ -92,14 +92,19 @@ def simple_iam(params):
 
     # +2 is to account for the two special tokens introduced by the CTC loss.
     # The recommendation comes here: https://git.io/J0eXP.
+    # x = keras.layers.Dense(
+    #     len(char_to_num.get_vocabulary()) + 2, activation="softmax", name="dense2"
+    # )(x)
     x = keras.layers.Dense(
         len(char_to_num.get_vocabulary()) + 2, activation="softmax", name="dense2"
     )(x)
-    print("labels", labels)
+
+
+    # print("labels", labels)
 
     # Add CTC layer for calculating CTC loss at each step.
     output = CTCLayer(name="ctc_loss")(labels, x)
-
+    
     # Define the model.
     model = keras.models.Model(
         inputs=[input_img, labels], outputs=output, name="handwriting_recognizer"
