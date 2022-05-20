@@ -23,7 +23,7 @@ def blackAndWhite(imagePath):  # convert picture to black and white
 
 
 # Keep only main text/ delete most white space around the text
-def cropImage(image, threshold=10, all=True, top=False, bottom=False, left=False, right=False):
+def cropImage(image, threshold=5, all=True, top=False, bottom=False, left=False, right=False):
     # Additional boolean arguments are used for croping only specific sides (and requites "all=False").
     rowTopBoundary = rowBotBoundary = colLeftBoundary = colRightBoundary = 0
 
@@ -75,7 +75,7 @@ def makeImageFolder(folderName):
 
 
 # Returns an array with the stripes and the blocks in each stripe
-def createStripesAndBlocks(image, numOfStripes=2, pxlThreshold=15, maxNumOfBlocks=40, maxRowsPerBlock=1000):
+def createStripesAndBlocks(image, numOfStripes=2, pxlThreshold=30, maxNumOfBlocks=80, maxRowsPerBlock=2000):
     """
     numOfStripes : The number of vertical stripes the image is cut into
     pxlThreshold : The number of black pixels that a row of pixels within a stripe needs to contain to be considered a text line
@@ -219,7 +219,7 @@ if __name__ == "__main__":
         # Folders will be created inside the general Lines folder
         folderPath = makeImageFolder(str(imagePath))
         # Make the picture black and white and crop it so that only the text is present.
-        image = cropImage(blackAndWhite(imagePath), 20)
+        image = cropImage(blackAndWhite(imagePath), 15)
         # Splits the image into stripes and blocks per stripe
         stripesAndBlocks = createStripesAndBlocks(image)
         # Merges or splits blocks, dealing with over/under block segmentation
