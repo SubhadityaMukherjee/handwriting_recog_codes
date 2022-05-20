@@ -1,10 +1,10 @@
 import cv2
-import os
 from multiprocessing import Pool
 import numpy as np
 from pathlib import Path
 from utils import *
 import os
+import sys
 from pathlib import Path
 
 
@@ -179,12 +179,14 @@ def standardiseBlocks(stripesAndBlocks):
         for block in stripe:
             if len(block) > maxNumberOfRowsPerBlock:
                 maxNumberOfRowsPerBlock = len(block)
-    
-    standardisedBlocks = np.full((len(stripesAndBlocks), maxNumberOfBlocks, maxNumberOfRowsPerBlock, blockWidth), 255)
+
+    standardisedBlocks = np.full(
+        (len(stripesAndBlocks), maxNumberOfBlocks, maxNumberOfRowsPerBlock, blockWidth), 255)
     for stripeIndex in range(len(stripesAndBlocks)):
         for blockIndex, block in enumerate(stripesAndBlocks[stripeIndex]):
             blockHeight = stripesAndBlocks[stripeIndex][blockIndex].shape[0]
-            standardisedBlocks[stripeIndex][blockIndex][0:blockHeight, 0:blockWidth] = block
+            standardisedBlocks[stripeIndex][blockIndex][0:blockHeight,
+                                                        0:blockWidth] = block
 
     return standardisedBlocks
 
@@ -206,15 +208,10 @@ def concatBlocksAndExport(stripesAndBlocks, exportPath):
     return stripesAndBlocks
 
 
-if __name__ == "__main__":
-    imagePaths = importImagePaths(Path("data/image-data"))
-    # Make general lines folder for the output of each image
-    if not os.path.exists("lines/"):
-        os.makedirs("lines/")
-
+def stripeSegmentation(imagePaths):
     # Segment Lines for each Image
     for imageIndex, imagePath in enumerate(imagePaths):
-        print("Line Segmentation Progress: " +
+        print("Line Segmentation Progress (HPP algorithm with stripes): " +
               str(imageIndex*100/len(imagePaths)) + "%")
         # Folders will be created inside the general Lines folder
         folderPath = makeImageFolder(str(imagePath))
@@ -224,8 +221,28 @@ if __name__ == "__main__":
         stripesAndBlocks = createStripesAndBlocks(image)
         # Merges or splits blocks, dealing with over/under block segmentation
         stripesAndBlocks = overUnderSegmentation(stripesAndBlocks)
-        #Makes sure stripes and blocks are the same size, by filling with blank space
+        # Makes sure stripes and blocks are the same size, by filling with blank space
         stripesAndBlocks = standardiseBlocks(stripesAndBlocks)
         concatBlocksAndExport(stripesAndBlocks, folderPath)
+
+
+def contourSegmentation(imagePaths):
+    print("Countour segmentation not yet implemented :(")
+
+
+if __name__ == "__main__":
+    imagePaths = importImagePaths(Path("data/image-data"))
+    # Make general lines folder for the output of each image
+    if not os.path.exists("lines/"):
+        os.makedirs("lines/")
+
+    if int(sys.argv[1]) == 0:
+        stripeSegmentation(imagePaths)
+    elif int(sys.argv[1]) == 1:
+        contourSegmentation(imagePaths)
+    # elif int(sys.argv[1]) == 2:
+        # aruNetSegmentation(imagePaths)
+    else:
+        sys.exit("Argument " + "'" + str(sys.argv[1])+"' not recognised")
 
     print("Line Segmentation Complete!")
