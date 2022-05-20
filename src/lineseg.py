@@ -208,26 +208,19 @@ def concatBlocksAndExport(stripesAndBlocks, exportPath):
     return stripesAndBlocks
 
 
-def stripeSegmentation(imagePaths):
-    # Segment Lines for each Image
-    for imageIndex, imagePath in enumerate(imagePaths):
-        print("Line Segmentation Progress (HPP algorithm with stripes): " +
-              str(imageIndex*100/len(imagePaths)) + "%")
-        # Folders will be created inside the general Lines folder
-        folderPath = makeImageFolder(str(imagePath))
-        # Make the picture black and white and crop it so that only the text is present.
-        image = cropImage(blackAndWhite(imagePath), 15)
-        # Splits the image into stripes and blocks per stripe
-        stripesAndBlocks = createStripesAndBlocks(image)
-        # Merges or splits blocks, dealing with over/under block segmentation
-        stripesAndBlocks = overUnderSegmentation(stripesAndBlocks)
-        # Makes sure stripes and blocks are the same size, by filling with blank space
-        stripesAndBlocks = standardiseBlocks(stripesAndBlocks)
-        concatBlocksAndExport(stripesAndBlocks, folderPath)
+def stripeSegmentation(image, folderPath):
+    # Splits the image into stripes and blocks per stripe
+    stripesAndBlocks = createStripesAndBlocks(image)
+    # Merges or splits blocks, dealing with over/under block segmentation
+    stripesAndBlocks = overUnderSegmentation(stripesAndBlocks)
+    # Makes sure stripes and blocks are the same size, by filling with blank space
+    stripesAndBlocks = standardiseBlocks(stripesAndBlocks)
+    concatBlocksAndExport(stripesAndBlocks, folderPath)
 
 
 def contourSegmentation(imagePaths):
     print("Countour segmentation not yet implemented :(")
+
 
 
 if __name__ == "__main__":
@@ -236,13 +229,18 @@ if __name__ == "__main__":
     if not os.path.exists("lines/"):
         os.makedirs("lines/")
 
-    if int(sys.argv[1]) == 0:
-        stripeSegmentation(imagePaths)
-    elif int(sys.argv[1]) == 1:
-        contourSegmentation(imagePaths)
-    # elif int(sys.argv[1]) == 2:
-        # aruNetSegmentation(imagePaths)
-    else:
-        sys.exit("Argument " + "'" + str(sys.argv[1])+"' not recognised")
+    for imageIndex, imagePath in enumerate(imagePaths):
+        print("Line Segmentation Progress: " +
+              str(imageIndex*100/len(imagePaths)) + "%")
+        # Folders will be created inside the general Lines folder
+        folderPath = makeImageFolder(str(imagePath))
+        # Make the picture black and white and crop it so that only the text is present.
+        image = cropImage(blackAndWhite(imagePath), 15)
+        if len(sys.argv) == 1 or int(sys.argv[1]) == 0:
+            stripeSegmentation(image, folderPath)
+        elif int(sys.argv[1]) == 1:
+            contourSegmentation(image)
+        else:
+            sys.exit("Argument " + "'" + str(sys.argv[1])+"' not recognised")
 
     print("Line Segmentation Complete!")
