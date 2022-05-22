@@ -21,7 +21,7 @@ AUTOTUNE = tf.data.AUTOTUNE
 # %%
 # Define defaults
 # TODO: Change to args
-main_path = Path("../data/IAM-data/")
+main_path = Path("data/IAM-data/")
 images_path = main_path / "img"
 labels_path = main_path / "iam_lines_gt.txt"
 batch_size = 64

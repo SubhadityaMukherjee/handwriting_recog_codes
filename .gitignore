@@ -16,7 +16,8 @@ __pycache__/*
 *.yaml
 *.csv
 tags
-data/
+src/data/
 *.h5
 new_data/
 .venv/
+/src/lines/
