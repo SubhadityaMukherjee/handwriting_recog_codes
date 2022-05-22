@@ -18,7 +18,7 @@ def importImagePaths(main_path):  # Return the paths to the images
 def blackWhiteDilate(imagePath):
     rawImage = cv2.imread(imagePath)
 
-    kernel = np.ones((2, 2), np.uint8)
+    kernel = np.ones((3, 3), np.uint8)
     # Even though we use erosion, the effect is more similar to dilation as the image is not inverted
     dilatedImage = cv2.erode(rawImage, kernel, iterations=1)
 
@@ -29,7 +29,7 @@ def blackWhiteDilate(imagePath):
 
 
 # Keep only main text/ delete most white space around the text
-def cropImage(image, threshold=5, all=True, top=False, bottom=False, left=False, right=False):
+def cropImage(image, threshold=2, all=True, top=False, bottom=False, left=False, right=False):
     # Additional boolean arguments are used for croping only specific sides (and requites "all=False").
     rowTopBoundary = rowBotBoundary = colLeftBoundary = colRightBoundary = 0
 
@@ -81,7 +81,7 @@ def makeImageFolder(folderName):
 
 
 # Returns an array with the stripes and the blocks in each stripe
-def createStripesAndBlocks(image, numOfStripes=2, pxlThreshold=30, maxNumOfBlocks=80, maxRowsPerBlock=2000):
+def createStripesAndBlocks(image, numOfStripes=2, tshP=5, maxNumOfBlocks=40, maxRowsPerBlock=2000):
     """
     numOfStripes : The number of vertical stripes the image is cut into
     pxlThreshold : The number of black pixels that a row of pixels within a stripe needs to contain to be considered a text line
@@ -90,6 +90,7 @@ def createStripesAndBlocks(image, numOfStripes=2, pxlThreshold=30, maxNumOfBlock
     """
 
     height, width = np.shape(image)
+    threshold = width / (tshP * 10)#depending on resolution, use different threshold
     stripeWidth = width // numOfStripes
     stripesArr = np.empty((numOfStripes, height, stripeWidth))
     # used later to see if the padding should be at the top or bottom of the stripe (so that alignment with other stripes is correct). 0 for bottom padding, 1 for top padding
@@ -111,7 +112,7 @@ def createStripesAndBlocks(image, numOfStripes=2, pxlThreshold=30, maxNumOfBlock
         currentRowInBlock = 0
         for row_index, row in enumerate(stripesArr[stripe]):
             # If this line has >10 black pixels, it is a line of text
-            if np.count_nonzero(stripesArr[stripe, row_index] == 0) > pxlThreshold:
+            if np.count_nonzero(stripesArr[stripe, row_index] == 0) > threshold:
                 allBlocks[stripe, currentBlock,
                           currentRowInBlock] = stripesArr[stripe, row_index]
                 currentRowInBlock += 1
@@ -165,7 +166,7 @@ def overUnderSegmentation(stripesAndBlocks):
         # Assumption: Up to two lines are segmented together.
         blockIndex = 0
         while blockIndex < (len(blocksOfStripe)):
-            if len(blocksOfStripe[blockIndex]) > 1.5 * averageBlockHeight:
+            if len(blocksOfStripe[blockIndex]) >= 1.75 * averageBlockHeight:
                 middle = len(blocksOfStripe[blockIndex]) // 2
                 firstHalf = blocksOfStripe[blockIndex][:middle]
                 secondHalf = blocksOfStripe[blockIndex][middle:]
@@ -182,7 +183,6 @@ def overUnderSegmentation(stripesAndBlocks):
 
 # Make sure all blocks and stripes are of the same size by filling with blank space.
 def standardiseBlocks(stripesAndBlocks, padLocations):
-    print(padLocations)
     maxNumberOfBlocks = 0
     maxNumberOfRowsPerBlock = 0
     blockWidth = len(stripesAndBlocks[0][0][0])
@@ -196,7 +196,9 @@ def standardiseBlocks(stripesAndBlocks, padLocations):
     standardisedBlocks = np.full(
         (len(stripesAndBlocks), maxNumberOfBlocks, maxNumberOfRowsPerBlock, blockWidth), 255)
     for stripeIndex in range(len(stripesAndBlocks)):
-        heightDifference = len(standardisedBlocks[0])-len(stripesAndBlocks[stripeIndex]) # difference between height of the stripes
+        # difference between height of the stripes
+        heightDifference = len(
+            standardisedBlocks[0])-len(stripesAndBlocks[stripeIndex])
         if padLocations[stripeIndex] == 0:  # pad bottom
             for blockIndex, block in enumerate(stripesAndBlocks[stripeIndex]):
                 blockHeight = stripesAndBlocks[stripeIndex][blockIndex].shape[0]
@@ -206,7 +208,7 @@ def standardiseBlocks(stripesAndBlocks, padLocations):
             for blockIndex, block in enumerate(stripesAndBlocks[stripeIndex]):
                 blockHeight = stripesAndBlocks[stripeIndex][blockIndex].shape[0]
                 standardisedBlocks[stripeIndex][blockIndex + heightDifference][0:blockHeight,
-                                                            0:blockWidth] = block
+                                                                               0:blockWidth] = block
 
     return standardisedBlocks
 
