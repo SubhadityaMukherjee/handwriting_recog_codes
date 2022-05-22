@@ -14,10 +14,16 @@ def importImagePaths(main_path):  # Return the paths to the images
     return list_of_binarized_paths
 
 
-def blackAndWhite(imagePath):  # convert picture to black and white
+# convert picture to black and white and dilate it (making characters fuller)
+def blackWhiteDilate(imagePath):
     rawImage = cv2.imread(imagePath)
+
+    kernel = np.ones((2, 2), np.uint8)
+    # Even though we use erosion, the effect is more similar to dilation as the image is not inverted
+    dilatedImage = cv2.erode(rawImage, kernel, iterations=1)
+
     (_, processedImage) = cv2.threshold(cv2.cvtColor(
-        rawImage, cv2.COLOR_BGR2GRAY), 127, 255, cv2.THRESH_BINARY)
+        dilatedImage, cv2.COLOR_BGR2GRAY), 127, 255, cv2.THRESH_BINARY)
 
     return processedImage
 
@@ -86,9 +92,15 @@ def createStripesAndBlocks(image, numOfStripes=2, pxlThreshold=30, maxNumOfBlock
     height, width = np.shape(image)
     stripeWidth = width // numOfStripes
     stripesArr = np.empty((numOfStripes, height, stripeWidth))
-
+    # used later to see if the padding should be at the top or bottom of the stripe (so that alignment with other stripes is correct). 0 for bottom padding, 1 for top padding
+    padLocations = []
     for i in range(numOfStripes):  # Cut into stripes
         stripesArr[i] = image[:, (i*stripeWidth):(i+1)*stripeWidth]
+        sliceSize = len(stripesArr[i]) // 20  # Take the bottom/top 5%
+        if np.count_nonzero(stripesArr[i][0:sliceSize, 0:len(stripesArr[i][0]-1)] == 0) > np.count_nonzero(stripesArr[i][len(stripesArr[i]) - sliceSize:, :] == 0):
+            padLocations.append(0)  # Bot padding
+        else:
+            padLocations.append(1)  # Top padding
     # 4D array that will hold all blocks, set white background
     allBlocks = np.full((numOfStripes, maxNumOfBlocks,
                         maxRowsPerBlock, stripeWidth), 255)
@@ -107,7 +119,7 @@ def createStripesAndBlocks(image, numOfStripes=2, pxlThreshold=30, maxNumOfBlock
                 if not np.all(allBlocks[stripe, currentBlock] == 255):
                     currentBlock += 1
                     currentRowInBlock = 0
-    return allBlocks
+    return allBlocks, padLocations
 
 
 # Deals with over/under segmentation of vertical blocks. Also removes blank space at the bottom of each block.
@@ -169,7 +181,8 @@ def overUnderSegmentation(stripesAndBlocks):
 
 
 # Make sure all blocks and stripes are of the same size by filling with blank space.
-def standardiseBlocks(stripesAndBlocks):
+def standardiseBlocks(stripesAndBlocks, padLocations):
+    print(padLocations)
     maxNumberOfBlocks = 0
     maxNumberOfRowsPerBlock = 0
     blockWidth = len(stripesAndBlocks[0][0][0])
@@ -183,10 +196,17 @@ def standardiseBlocks(stripesAndBlocks):
     standardisedBlocks = np.full(
         (len(stripesAndBlocks), maxNumberOfBlocks, maxNumberOfRowsPerBlock, blockWidth), 255)
     for stripeIndex in range(len(stripesAndBlocks)):
-        for blockIndex, block in enumerate(stripesAndBlocks[stripeIndex]):
-            blockHeight = stripesAndBlocks[stripeIndex][blockIndex].shape[0]
-            standardisedBlocks[stripeIndex][blockIndex][0:blockHeight,
-                                                        0:blockWidth] = block
+        heightDifference = len(standardisedBlocks[0])-len(stripesAndBlocks[stripeIndex]) # difference between height of the stripes
+        if padLocations[stripeIndex] == 0:  # pad bottom
+            for blockIndex, block in enumerate(stripesAndBlocks[stripeIndex]):
+                blockHeight = stripesAndBlocks[stripeIndex][blockIndex].shape[0]
+                standardisedBlocks[stripeIndex][blockIndex][0:blockHeight,
+                                                            0:blockWidth] = block
+        else:  # pad top
+            for blockIndex, block in enumerate(stripesAndBlocks[stripeIndex]):
+                blockHeight = stripesAndBlocks[stripeIndex][blockIndex].shape[0]
+                standardisedBlocks[stripeIndex][blockIndex + heightDifference][0:blockHeight,
+                                                            0:blockWidth] = block
 
     return standardisedBlocks
 
@@ -210,17 +230,38 @@ def concatBlocksAndExport(stripesAndBlocks, exportPath):
 
 def stripeSegmentation(image, folderPath):
     # Splits the image into stripes and blocks per stripe
-    stripesAndBlocks = createStripesAndBlocks(image)
+    stripesAndBlocks, padLocations = createStripesAndBlocks(image)
     # Merges or splits blocks, dealing with over/under block segmentation
     stripesAndBlocks = overUnderSegmentation(stripesAndBlocks)
     # Makes sure stripes and blocks are the same size, by filling with blank space
-    stripesAndBlocks = standardiseBlocks(stripesAndBlocks)
+    stripesAndBlocks = standardiseBlocks(stripesAndBlocks, padLocations)
     concatBlocksAndExport(stripesAndBlocks, folderPath)
 
 
-def contourSegmentation(imagePaths):
-    print("Countour segmentation not yet implemented :(")
+def contourSegmentation(image, folderPath):
+    _, image = cv2.threshold(image, 127, 255, cv2.THRESH_BINARY_INV)
+    # dilation
+    kernel = np.ones((5, 100), np.uint8)
+    # 5,100 for line, 5.5 for character
+    img_dilation = cv2.dilate(image, kernel, iterations=1)
 
+    # find contours
+    ctrs, _ = cv2.findContours(
+        img_dilation.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # sort contours
+    sorted_ctrs = sorted(ctrs, key=lambda ctr: cv2.boundingRect(ctr)[0])
+
+    for i, ctr in enumerate(sorted_ctrs):
+        # Get bounding box
+        x, y, w, h = cv2.boundingRect(ctr)
+
+        # Getting ROI
+        roi = image[y:y+h, x:x+w]
+        linePath = 'lines/' + folderPath
+        nameOfOutput = str(i) + ".png"
+        if len(roi[0]) > 500:  # Don't save very small contours
+            cv2.imwrite(os.path.join(linePath, nameOfOutput), roi)
 
 
 if __name__ == "__main__":
@@ -231,15 +272,15 @@ if __name__ == "__main__":
 
     for imageIndex, imagePath in enumerate(imagePaths):
         print("Line Segmentation Progress: " +
-              str(imageIndex*100/len(imagePaths)) + "%")
+              str(int(imageIndex*100/len(imagePaths))) + "%")
         # Folders will be created inside the general Lines folder
         folderPath = makeImageFolder(str(imagePath))
         # Make the picture black and white and crop it so that only the text is present.
-        image = cropImage(blackAndWhite(imagePath), 15)
+        image = cropImage(blackWhiteDilate(imagePath), 15)
         if len(sys.argv) == 1 or int(sys.argv[1]) == 0:
             stripeSegmentation(image, folderPath)
         elif int(sys.argv[1]) == 1:
-            contourSegmentation(image)
+            contourSegmentation(image, folderPath)
         else:
             sys.exit("Argument " + "'" + str(sys.argv[1])+"' not recognised")
 
