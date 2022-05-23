@@ -150,16 +150,15 @@ def preprocess(image):
     kernelSize = 5
     maxKernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernelSize, kernelSize))
 
-    close = cv2.morphologyEx(grayscale, cv2.MORPH_CLOSE, maxKernel)
+    morphClose = cv2.morphologyEx(grayscale, cv2.MORPH_CLOSE, maxKernel)
 
-    kernelSize = 7
+    kernelSize = 3
     maxKernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernelSize, kernelSize))
 
-    open = cv2.morphologyEx(close, cv2.MORPH_OPEN, maxKernel)
+    morphOpen = cv2.morphologyEx(morphClose, cv2.MORPH_OPEN, maxKernel)
 
 
-
-    return open
+    return morphOpen
 
 
 class StoreAndProcess:
