@@ -8,6 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import *
 from tqdm import tqdm
+import cv2
 from PIL import Image
 from tensorflow import keras
 import tensorflow as tf
@@ -16,6 +17,7 @@ import matplotlib.pyplot as plt
 # from IPython.display import Image
 
 import numpy as np
+
 """
 This module contains all the general add ons
 """
@@ -137,6 +139,28 @@ def distortion_free_resize(image, img_size):
     return image
 
 
+"""
+Preprocessing for images in DeadSea Scrolls
+"""
+
+
+def preprocess(image):
+    grayscale = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    kernelSize = 5
+    maxKernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernelSize, kernelSize))
+
+    morphClose = cv2.morphologyEx(grayscale, cv2.MORPH_CLOSE, maxKernel)
+
+    kernelSize = 3
+    maxKernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernelSize, kernelSize))
+
+    morphOpen = cv2.morphologyEx(morphClose, cv2.MORPH_OPEN, maxKernel)
+
+
+    return morphOpen
+
+
 class StoreAndProcess:
     """
     A class to store and process the images and labels
@@ -161,7 +185,7 @@ class StoreAndProcess:
     def vectorize_label(self, label):
         label = self.params["char_to_num"](tf.strings.unicode_split(
             label, input_encoding="UTF-8"))
-        
+
         # print(label)
         length = tf.shape(label)[0]
         pad_amount = self.params["max_len"] - length
@@ -181,7 +205,7 @@ class StoreAndProcess:
 
         dataset = tf.data.Dataset.from_tensor_slices(dict_k)
         # dataset = tf.data.Dataset.from_tensor_slices((image_paths, labels)).map(
-            # self.process_images_labels, num_parallel_calls=tf.data.AUTOTUNE
+        # self.process_images_labels, num_parallel_calls=tf.data.AUTOTUNE
         # )
         return dataset.batch(self.params["batch_size"])
 
