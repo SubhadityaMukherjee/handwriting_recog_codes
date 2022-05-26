@@ -7,7 +7,7 @@ import os
 import sys
 from pathlib import Path
 from scipy.signal import find_peaks
-import matplotlib.pyplot as plt
+import imutils
 
 
 def importImagePaths(main_path):  # Return the paths to the images
@@ -30,16 +30,55 @@ def blackWhiteDilate(imagePath):
     return processedImage
 
 
-# Detecs if the picture is slanted.
+# Detects if the picture is slanted.
 def isSlanted(image, threshold=0.125):
     hpp = np.sum(image, axis=1)
     normedHpp = (hpp / hpp.mean())
-    peaks, peaksInfo = find_peaks(normedHpp, height=0)
+    _, peaksInfo = find_peaks(normedHpp, height=0)
 
-    if(np.std(peaksInfo["peak_heights"]) < threshold):
+    if(np.std(peaksInfo["peak_heights"]) < threshold):  # high: normal, low: slanted
         return True
     else:
         return False
+
+
+def rotate_bound_white(image, angle):
+    # Modified imutils.rotate_bound to have a white background
+    (h, w) = image.shape[:2]
+    (cX, cY) = (w / 2, h / 2)
+
+    M = cv2.getRotationMatrix2D((cX, cY), -angle, 1.0)
+    cos = np.abs(M[0, 0])
+    sin = np.abs(M[0, 1])
+
+    # compute the new bounding dimensions of the image
+    nW = int((h * sin) + (w * cos))
+    nH = int((h * cos) + (w * sin))
+
+    # adjust the rotation matrix to take into account translation
+    M[0, 2] += (nW / 2) - cX
+    M[1, 2] += (nH / 2) - cY
+
+    # perform the actual rotation and return the image
+    return cv2.warpAffine(image, M, (nW, nH), borderMode=cv2.BORDER_CONSTANT, borderValue=(255, 255, 255))
+
+
+# Given an image, it tries to remove slanting by rotating it.
+def fixRotation(image):
+    bestImage = image
+    stdOfBest = 0
+    # Try different angles to find the one with the lowest std in peaks
+    for angle in range(-10, 10):
+        tempImage = rotate_bound_white(image, angle)
+        hpp = np.sum(tempImage, axis=1)
+        normedHpp = (hpp / hpp.mean())
+        _, peaksInfo = find_peaks(normedHpp, height=0)
+        stdOfTemp = np.std(peaksInfo["peak_heights"])
+        if(stdOfTemp > stdOfBest):
+            bestImage = tempImage
+            stdOfBest = stdOfTemp
+    cv2.imwrite("rotatedImage.png", bestImage)
+    return bestImage
 
 
 # Keep only main text/ delete most white space around the text
@@ -97,8 +136,6 @@ def makeImageFolder(folderName):
 
 # Returns an array with the stripes and the blocks in each stripe.
 # tshPLow and tshPHigh determine the threshold for low and high density images respectively
-# 1 stripe: Use tshPLow=3.5 and tsPHigh=2.5 for 2 stripes. More tests needed here
-# 2 stripes: Use tshPLow=3.5 and tsPHigh=2.5 for 2 stripes.
 def createStripesAndBlocks(image, numOfStripes=1, tshPLow=4, tshPHigh=2.5, maxNumOfBlocks=40, maxRowsPerBlock=2000):
     """
     numOfStripes : The number of vertical stripes the image is cut into
@@ -106,11 +143,6 @@ def createStripesAndBlocks(image, numOfStripes=1, tshPLow=4, tshPHigh=2.5, maxNu
     maxNumOfBlocks  : The maximum number of blocks of text per stripe (e.g. 30 blocks if you expect up to 30 lines of text, before under/oversegmentation is dealt with)
     maxRowsPerBlock  : The maximum number of pixels that each text line might require.
     """
-    if(isSlanted(image)):
-        numOfStripes = 2
-    else:
-        numOfStripes = 1
-
     height, width = np.shape(image)
     # Determine if picture is high or low density
     # TODO: use different thresholds here
@@ -310,7 +342,7 @@ if __name__ == "__main__":
         # Folders will be created inside the general Lines folder
         folderPath = makeImageFolder(str(imagePath))
         # Make the picture black and white and crop it so that only the text is present.
-        image = cropImage(blackWhiteDilate(imagePath), 15)
+        image = fixRotation(cropImage(blackWhiteDilate(imagePath), 15))
         if len(sys.argv) == 1 or int(sys.argv[1]) == 0:
             stripeSegmentation(image, folderPath)
         elif int(sys.argv[1]) == 1:
