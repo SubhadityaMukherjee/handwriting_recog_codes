@@ -6,6 +6,8 @@ from utils import *
 import os
 import sys
 from pathlib import Path
+from scipy.signal import find_peaks
+import matplotlib.pyplot as plt
 
 
 def importImagePaths(main_path):  # Return the paths to the images
@@ -18,7 +20,7 @@ def importImagePaths(main_path):  # Return the paths to the images
 def blackWhiteDilate(imagePath):
     rawImage = cv2.imread(imagePath)
 
-    kernel = np.ones((3, 3), np.uint8)
+    kernel = np.ones((2, 2), np.uint8)
     # Even though we use erosion, the effect is more similar to dilation as the image is not inverted
     dilatedImage = cv2.erode(rawImage, kernel, iterations=1)
 
@@ -28,8 +30,21 @@ def blackWhiteDilate(imagePath):
     return processedImage
 
 
+# Detecs if the picture is slanted.
+def isSlanted(image, threshold=0.125):
+    hpp = np.sum(image, axis=1)
+    normedHpp = (hpp / hpp.mean())
+    peaks, peaksInfo = find_peaks(normedHpp, height=0)
+
+    if(np.std(peaksInfo["peak_heights"]) < threshold):
+        return True
+    else:
+        return False
+
+
 # Keep only main text/ delete most white space around the text
 def cropImage(image, threshold=2, all=True, top=False, bottom=False, left=False, right=False):
+
     # Additional boolean arguments are used for croping only specific sides (and requites "all=False").
     rowTopBoundary = rowBotBoundary = colLeftBoundary = colRightBoundary = 0
 
@@ -80,17 +95,35 @@ def makeImageFolder(folderName):
     return specificFolderPath
 
 
-# Returns an array with the stripes and the blocks in each stripe
-def createStripesAndBlocks(image, numOfStripes=2, tshP=5, maxNumOfBlocks=40, maxRowsPerBlock=2000):
+# Returns an array with the stripes and the blocks in each stripe.
+# tshPLow and tshPHigh determine the threshold for low and high density images respectively
+# 1 stripe: Use tshPLow=3.5 and tsPHigh=2.5 for 2 stripes. More tests needed here
+# 2 stripes: Use tshPLow=3.5 and tsPHigh=2.5 for 2 stripes.
+def createStripesAndBlocks(image, numOfStripes=1, tshPLow=4, tshPHigh=2.5, maxNumOfBlocks=40, maxRowsPerBlock=2000):
     """
     numOfStripes : The number of vertical stripes the image is cut into
     pxlThreshold : The number of black pixels that a row of pixels within a stripe needs to contain to be considered a text line
     maxNumOfBlocks  : The maximum number of blocks of text per stripe (e.g. 30 blocks if you expect up to 30 lines of text, before under/oversegmentation is dealt with)
     maxRowsPerBlock  : The maximum number of pixels that each text line might require.
     """
+    if(isSlanted(image)):
+        numOfStripes = 2
+    else:
+        numOfStripes = 1
 
     height, width = np.shape(image)
-    threshold = width / (tshP * 10)#depending on resolution, use different threshold
+    # Determine if picture is high or low density
+    # TODO: use different thresholds here
+    density = np.count_nonzero(image == 0)/np.count_nonzero(image == 255)
+
+    threshold = 0
+    if(density >= 0.15):  # 0.15 experimentally found
+        # depending on resolution and density, use different threshold
+        threshold = width / (tshPHigh * 10)
+    else:
+        # depending on resolution and density, use different threshold
+        threshold = width / (tshPLow * 10)
+
     stripeWidth = width // numOfStripes
     stripesArr = np.empty((numOfStripes, height, stripeWidth))
     # used later to see if the padding should be at the top or bottom of the stripe (so that alignment with other stripes is correct). 0 for bottom padding, 1 for top padding
@@ -132,7 +165,7 @@ def overUnderSegmentation(stripesAndBlocks):
         averageBlockHeight = 0
         for block in stripe:
             cleanBlock = cropImage(block, 2, False, False, True)
-            # More than 5 black pixels to be considered a text line block.
+            # More than 20 black pixels to be considered a text line block.
             if np.count_nonzero(cleanBlock == 0) > 20:
                 blocksOfStripe.append(cleanBlock)
 
@@ -166,14 +199,13 @@ def overUnderSegmentation(stripesAndBlocks):
         # Assumption: Up to two lines are segmented together.
         blockIndex = 0
         while blockIndex < (len(blocksOfStripe)):
-            if len(blocksOfStripe[blockIndex]) >= 1.75 * averageBlockHeight:
+            if len(blocksOfStripe[blockIndex]) >= 1.65 * averageBlockHeight:
                 middle = len(blocksOfStripe[blockIndex]) // 2
                 firstHalf = blocksOfStripe[blockIndex][:middle]
                 secondHalf = blocksOfStripe[blockIndex][middle:]
                 del blocksOfStripe[blockIndex]
                 blocksOfStripe.insert(blockIndex, firstHalf)
                 blocksOfStripe.insert(blockIndex + 1, secondHalf)
-
             blockIndex += 1
 
         # Now create a new array with the adjusted blocks:
