@@ -224,12 +224,12 @@ class CtcModel(HTRModel):
         # print(train_generator.batch_dim)
         # train_np = train_generator.numpy()
         # val_np = val_generator.numpy()
-        # steps_per_epoch = math.ceil(train_generator.size / train_generator.batch_size)
-        # val_steps = math.ceil(val_generator.size / val_generator.batch_size)
+        steps_per_epoch = math.ceil(train_generator.size / train_generator.batch_size)
+        val_steps = math.ceil(val_generator.size / val_generator.batch_size)
         # print(len(train_generator))
-        steps_per_epoch = math.ceil(tf.data.experimental.cardinality(train_generator).numpy() / len(train_generator))
-        val_steps = math.ceil(tf.data.experimental.cardinality(val_generator).numpy() / len(val_generator))
-        print(steps_per_epoch, val_steps)
+        # steps_per_epoch = math.ceil(tf.data.experimental.cardinality(train_generator).numpy() / len(train_generator))
+        # val_steps = math.ceil(tf.data.experimental.cardinality(val_generator).numpy() / len(val_generator))
+        # print(steps_per_epoch, val_steps)
 
         loss = self._get_loss()
         lr = 0.001
