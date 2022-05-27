@@ -63,8 +63,12 @@ def iam_data_reader(images_path, labels_path, image_size, subset=None):
                 # images.append(np.array(Image.open(fname).convert("L").resize(image_size, Image.Resampling.BILINEAR)))
                 images.append(fname)
             elif len(line) > 1:
-                labels.append(line.strip())
-                print(line)
+                # labels.append(line.strip())
+                string_encode = line.lower().strip().encode("ascii", "ignore")
+                string_decode = string_encode.decode()
+                labels.append(string_decode)
+
+                # print(line)
             else:
                 continue
     return images, labels
