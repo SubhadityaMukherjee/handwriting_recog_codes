@@ -4,6 +4,8 @@ import sys
 import cv2
 import numpy as np
 
+from tqdm import tqdm
+
 from utils import *
 from pathlib import Path
 
@@ -27,7 +29,9 @@ def getBBox(image):
     return bbox
 
 
-def oneLineProcessing(linePath):
+def oneLineProcessing(img_str, line):
+    linePath = "lines/" + str(img_str) + "/" + str(line)
+    #print(linePath)
     img = cv2.imread(linePath)
     processed = preprocess(img)
 
@@ -37,17 +41,29 @@ def oneLineProcessing(linePath):
     for i in range(len(bbox)):
         corner1, corner2, corner3, corner4 = int(bbox[i][0]), int(bbox[i][1]), int(bbox[i][2]), int(bbox[i][3])
         # print(corner1, corner2, corner3, corner4)
-        cv2.rectangle(img, (4*corner1, 4*corner2),
-                      (4*(corner1+corner3), 4*(corner2+corner4)),
+        cv2.rectangle(img, (4 * corner1, 4 * corner2),
+                      (4 * (corner1 + corner3), 4 * (corner2 + corner4)),
                       (0, 255, 0), shift=2, thickness=6)
 
-    cv2.imwrite("lines/x/3.jpg", img)
-    cv2.imwrite("lines/x/4.jpg", 255 - processed)
+    #cv2.imwrite("lines/x/3.jpg", img)
+    #cv2.imwrite("lines/x/4.jpg", 255 - processed)
+    if not os.path.exists("lines/bbox"):
+        os.makedirs("lines/bbox")
+    cv2.imwrite("lines/bbox/" + str(img_str[:-4]) + "--" + str(line), img)
+
+
+def charSegmentation(imagesPath):
+    for img in tqdm(imagesPath):
+        imgPath = os.listdir("lines/" + str(img) + "/")
+
+        for line in imgPath:
+            if str(img) == "x":
+                break
+            elif str(img) == "bbox":
+                break
+            oneLineProcessing(img_str=img, line=line)
 
 
 if __name__ == "__main__":
     imagesPath = os.listdir("lines/")
-    linesImg0 = os.listdir("lines/" + imagesPath[0] + "/")
-    linePath = "lines/" + str(imagesPath[0]) + "/" + str(linesImg0[0])
-    print(linePath)
-    oneLineProcessing(linePath=linePath)
+    charSegmentation(imagesPath)
