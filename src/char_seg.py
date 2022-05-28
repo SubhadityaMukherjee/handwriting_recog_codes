@@ -10,6 +10,59 @@ from utils import *
 from pathlib import Path
 
 
+def mergeBoxes(box1, box2):
+    holder = []
+    p1 = min(box1[0], box2[0])
+    p2 = min(box1[1], box2[1])
+    p3 = max(box1[2], box2[2]) + abs(box1[0] - box2[0])
+    p4 = max(box1[3], box2[3]) + abs(box1[1] - box2[1])
+    holder.append(p1)
+    holder.append(p2)
+    holder.append(p3)
+    holder.append(p4)
+    print(box1, box2)
+    holder = tuple(holder)
+    return holder
+
+
+def cleanBoxes(box, bbox):
+    # Bounding box is saved only if it is 10 pixels or bigger
+    # This eliminates small bounding boxes on noise
+    if (box[2] < 15) or (box[3] < 15):
+        return
+    # 1 character is somewhere between 25 pixels and 75 pixels in width
+    # These characters are directly returned
+    elif (box[2] > 25) and (box[2] < 75):
+        return box
+    # Taking care of connected components
+    # TODO: find a way to split components
+    elif box[2] > 75:
+        return box
+    else:
+        # Following lines merge two bounding boxes, if the current bounding box is inside the previous registered
+        # bounding box. A leeway is given, so the current bounding bounding box can be 70% of its width outside the
+        # previous bounding box (on the x axis)
+        if bbox and ((bbox[-1][0] - box[2]*7/10) <= box[0]) and\
+                ((bbox[-1][0] + bbox[-1][2] + box[2]*7/10) >= (box[0] + box[2])):
+            # Following if statement is for the y axis. On this axis, if at least one of the edges of the current
+            # bounding box is inside the previous bounding box the boxes will be merged.
+            if (bbox[-1][1] < (box[1] + box[3]) <= (bbox[-1][1] + bbox[-1][3])) or\
+                    ((bbox[-1][1] + bbox[-1][3]) > box[1] >= bbox[-1][1]):
+                box = mergeBoxes(bbox[-1], box)
+                bbox.pop()
+                print(box)
+        # Following elif statement is the opposite of the last if statement. it does the same merging, but it checks if
+        # the previous bounding box is inside the current one
+        elif bbox and ((box[0] - bbox[-1][2]*7/10) <= bbox[-1][0]) and\
+                ((box[0] + box[2] + bbox[-1][2]*7/10) >= (bbox[-1][0] + bbox[-1][2])):
+            if (box[1] < (bbox[-1][1] + bbox[-1][3]) <= (box[1] + box[3])) or \
+                    ((box[1] + box[3]) > bbox[1] >= box[1]):
+                box = mergeBoxes(bbox[-1], box)
+                bbox.pop()
+                print(box)
+        return box
+
+
 def getBBox(image):
     # Getting characters' contours and creating a hierarchy
     cnt, hierarchy = cv2.findContours(image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -24,7 +77,10 @@ def getBBox(image):
 
         if hierarchy[0][i][3] == -1:
             box = cv2.boundingRect(poly[i])
-            bbox.append(box)
+            box = cleanBoxes(box, bbox)
+            if box:
+                ##print(box)
+                bbox.append(box)
 
     return bbox
 
@@ -40,10 +96,11 @@ def oneLineProcessing(img_str, line):
 
     for i in range(len(bbox)):
         corner1, corner2, corner3, corner4 = int(bbox[i][0]), int(bbox[i][1]), int(bbox[i][2]), int(bbox[i][3])
-        # print(corner1, corner2, corner3, corner4)
+        #print(corner1, corner2, corner3, corner4)
+        color = list(np.random.random(size=3) * 256)
         cv2.rectangle(img, (4 * corner1, 4 * corner2),
                       (4 * (corner1 + corner3), 4 * (corner2 + corner4)),
-                      (0, 255, 0), shift=2, thickness=6)
+                      color, shift=2, thickness=6)
 
     #cv2.imwrite("lines/x/3.jpg", img)
     #cv2.imwrite("lines/x/4.jpg", 255 - processed)
