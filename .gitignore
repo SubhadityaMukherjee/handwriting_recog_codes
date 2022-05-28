@@ -21,4 +21,9 @@ src/data/
 *.h5
 new_data/
 .venv/
+<<<<<<< HEAD
 /src/lines/
+=======
+temp_ds
+conv_lstm_model
+>>>>>>> bced003 (iam_update)
