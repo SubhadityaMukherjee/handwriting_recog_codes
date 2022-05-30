@@ -4,132 +4,16 @@ import math
 import os
 import random
 import shutil
-import subprocess
-from importlib import import_module
 from pathlib import Path
-from xml.etree import ElementTree as ET
-from xml.etree.ElementTree import ParseError
 
-import networkx as nx
 import numpy as np
 import scipy
 import tensorflow as tf
-from PIL import Image, ImageDraw, ImageFont, ImageOps
-from scipy import ndimage
+from PIL import Image
 from tensorflow.keras.callbacks import Callback
 from tqdm import tqdm
 
 from utilsiam import *
-
-
-def extract_texts_with_ids(path):
-    try:
-        tree = ET.parse(path)
-        root = tree.getroot()
-    except ParseError:
-        raise Exception()
-
-    root_tag = list(root.iterfind("handwritten-part"))
-    assert len(root_tag) != 0
-
-    for line in root_tag[0].iterfind("line"):
-        for word in line.iterfind("word"):
-            assert "text" in word.attrib and "id" in word.attrib
-            text = word.attrib["text"]
-            file_id = word.attrib["id"]
-            yield text, file_id
-
-
-def build_words_dataset(
-    words_root="iam_database/iam_words",
-    xml_root="iam_database/iam_database_xml",
-    destination_folder="words_dataset",
-    size=10000,
-    train_fraction=0.6,
-    val_fraction=0.2,
-):
-    if os.path.exists(destination_folder):
-        raise Exception("Data set already exists!")
-
-    if not os.path.exists(destination_folder):
-        os.makedirs(destination_folder)
-
-    label_maker = LabelMaker()
-
-    count = 0
-
-    train_folder = os.path.join(destination_folder, "train")
-    val_folder = os.path.join(destination_folder, "validation")
-    test_folder = os.path.join(destination_folder, "test")
-    train_dataset_creator = DataSetCreator(
-        words_root, train_folder, label_maker)
-    val_dataset_creator = DataSetCreator(words_root, val_folder, label_maker)
-    test_dataset_creator = DataSetCreator(words_root, test_folder, label_maker)
-
-    creators = [train_dataset_creator,
-                val_dataset_creator, test_dataset_creator]
-
-    for word, file_id in get_words_with_file_ids(xml_root):
-        if count > size:
-            break
-        print(word, file_id, count, size)
-        test_fraction = 1 - train_fraction - val_fraction
-        pmf = [train_fraction, val_fraction, test_fraction]
-        dataset_creator = np.random.choice(creators, p=pmf)
-
-        dataset_creator.add_example(word, file_id)
-        count += 1
-
-    for dataset_creator in creators:
-        dataset_creator.create_paths_file()
-
-    dictionary_file = os.path.join(destination_folder, "dictionary.txt")
-
-    with open(dictionary_file, "w") as f:
-        for word in label_maker.words:
-            f.write(word + "\n")
-
-
-def get_words_with_file_ids(xml_root):
-    for xml_path in file_iterator(xml_root):
-        for word, file_id in extract_texts_with_ids(xml_path):
-            if word.isalnum():
-                yield word, file_id
-
-
-class DataSetCreator:
-    def __init__(self, words_root, destination, label_maker):
-        if not os.path.exists(destination):
-            os.makedirs(destination)
-
-        self._finder = PathFinder(words_root)
-        self._label_to_copier = {}
-        self._label_maker = label_maker
-        self._destination_folder = destination
-        self._dataset_paths = []
-
-    def add_example(self, word, file_id):
-        file_path = self._finder.find_path(file_id)
-
-        self._label_maker.make_label_if_not_exists(word)
-        label = self._label_maker[word]
-        label_string = str(label)
-
-        if label_string not in self._label_to_copier:
-            folder_path = os.path.join(self._destination_folder, label_string)
-            self._label_to_copier[label_string] = FileCopier(folder_path)
-
-        copier = self._label_to_copier[label_string]
-        copy_path = copier.copy_file(file_path)
-
-        self._dataset_paths.append(copy_path)
-
-    def create_paths_file(self):
-        paths_file = os.path.join(self._destination_folder, "paths_list.txt")
-
-        with open(paths_file, "w") as f:
-            for path in self._dataset_paths:
-                f.write(path + "\n")
 
 
 def create_lines_dataset(
@@ -339,312 +223,6 @@ def create_char_table(split_folders):
     return char_table
 
 
-class LabelMaker:
-    def __init__(self):
-        self._word_to_label = {}
-        self._label_to_word = []
-
-    @property
-    def num_labels(self):
-        return len(self._word_to_label)
-
-    @property
-    def words(self):
-        return self._label_to_word
-
-    def make_label_if_not_exists(self, word):
-        if word not in self._word_to_label:
-            self._label_to_word.append(word)
-            self._word_to_label[word] = self.num_labels
-
-    def __getitem__(self, word):
-        return self._word_to_label[word]
-
-
-class ConnectedComponent:
-    def __init__(self, points):
-        self.points = points
-
-        self.y = [y for y, x in points]
-        self.x = [x for y, x in points]
-        self.top = min(self.y)
-        self.bottom = max(self.y)
-
-        self.left = min(self.x)
-        self.right = max(self.x)
-
-        self.height = self.bottom - self.top + 1
-        self.width = self.right - self.left + 1
-
-        self.center_x = np.array(self.x).mean()
-        self.center_y = self.top + self.height // 2
-
-    @property
-    def bounding_box(self):
-        return self.left, self.bottom, self.right, self.top
-
-    def __contains__(self, point):
-        y, x = point
-        return x >= self.left and x <= self.right and y >= self.top and y <= self.bottom
-
-    def visualize(self):
-        a = np.zeros((self.bottom + 1, self.right + 1, 1))
-
-        for y, x in self.points:
-            a[y, x, 0] = 255
-
-        tf.keras.preprocessing.image.array_to_img(a).show()
-
-
-class Line:
-    def __init__(self):
-        self._components = []
-
-    def add_component(self, component):
-        self._components.append(component)
-
-    def __iter__(self):
-        for c in self._components:
-            yield c
-
-    @property
-    def num_components(self):
-        return len(self._components)
-
-    @property
-    def top(self):
-        return min([component.top for component in self._components])
-
-    @property
-    def bottom(self):
-        return max([component.bottom for component in self._components])
-
-    @property
-    def left(self):
-        return min([component.left for component in self._components])
-
-    @property
-    def right(self):
-        return max([component.right for component in self._components])
-
-    @property
-    def height(self):
-        return self.bottom - self.height
-
-    def __contains__(self, component):
-        padding = 5
-        return (
-            component.center_y >= self.top - padding
-            and component.center_y < self.bottom + padding
-        )
-
-
-def to_vertex(i, j, w):
-    return i * w + j
-
-
-def to_grid_cell(v, h, w):
-    row = v // w
-    col = v % w
-    return row, col
-
-
-def is_within_bounds(h, w, i, j):
-    return i < h and i >= 0 and j < w and j >= 0
-
-
-def make_edges(h, w, i, j):
-    if j >= w:
-        return []
-
-    x = j
-    y = i
-
-    neighbors = []
-    for l in [-1, 1]:
-        for m in [-1, 1]:
-            neighbors.append((y + l, x + m))
-
-    vertices = [
-        to_vertex(y, x, w) for y, x in neighbors if is_within_bounds(h, w, y, x)
-    ]
-
-    u = to_vertex(i, j, w)
-    edges = [(u, v) for v in vertices]
-    return edges
-
-
-def make_grid_graph(im):
-    h, w = im.shape
-
-    G = nx.Graph()
-
-    for i in range(h):
-        for j in range(w):
-            for u, v in make_edges(h, w, i, j):
-                row, col = to_grid_cell(v, h, w)
-                if im[i, j] > 0 and im[row, col] > 0:
-                    G.add_node(to_vertex(i, j, w))
-                    G.add_node(u)
-                    G.add_edge(u, v)
-
-    return G
-
-
-def get_connected_components(im):
-    G = make_grid_graph(im)
-
-    h, w = im.shape
-
-    components = []
-    for vertices in nx.connected_components(G):
-        points = []
-        for v in vertices:
-            point = to_grid_cell(v, h, w)
-            points.append(point)
-
-        if len(points) > 0:
-            components.append(ConnectedComponent(points))
-
-    return components
-
-
-def get_seam(signed_distance):
-    s = ""
-    h, w, _ = signed_distance.shape
-
-    signed_distance = signed_distance.reshape(h, w)
-    for row in signed_distance.tolist():
-        s += " ".join(map(str, row)) + "\n"
-
-    with open("array.txt", "w") as f:
-        f.write("{} {}\n".format(h, w))
-        f.write(s)
-
-    subprocess.call(["./carving"])
-
-    with open("seam.txt") as f:
-        s = f.read()
-
-    row_indices = [int(v) for v in s.split(" ") if v != ""]
-
-    column_indices = list(range(w))
-
-    return row_indices, column_indices
-
-
-def visualize_map(m):
-    h, w, _ = m.shape
-    m = m.reshape(h, w)
-    m = m + abs(m.min())
-
-    c = m.max() / 255.0
-    m = m / c
-
-    m = 255 - m
-
-    tf.keras.preprocessing.image.array_to_img(m.reshape(h, w, 1)).show()
-
-
-def visualize_components(line):
-    h = line.bottom + 1
-    w = line.right + 1
-    a = np.zeros((h, w, 1))
-    for comp in line:
-        for y, x in comp.points:
-            a[y, x] = 255
-
-    tf.keras.preprocessing.image.array_to_img(a.reshape(h, w, 1)).show()
-
-
-def prepare_image():
-    # img = tf.keras.preprocessing.image.load_img('iam_database/iam_database_formsA-D/a01-000u.png')
-    img = tf.keras.preprocessing.image.load_img("screen.png")
-
-    a = tf.keras.preprocessing.image.img_to_array(img)
-    h, w, _ = a.shape
-
-    a = binarize(a)
-    x = a.reshape(h, w)
-
-    return x // 255
-
-
-def get_intersections(components, seam, lines):
-    row_indices, column_indices = seam
-
-    new_line = Line()
-
-    for row, col in zip(row_indices, column_indices):
-        point = (row, col)
-        for component in components[:]:
-            if point in component:
-                add_to_new_line = True
-
-                for line in lines:
-                    if component in line:
-                        line.add_component(component)
-                        add_to_new_line = False
-                        break
-                if add_to_new_line:
-                    new_line.add_component(component)
-
-                components.remove(component)
-
-    if new_line.num_components > 0:
-        lines.append(new_line)
-
-
-def seam_carving_segmentation():
-
-    x = prepare_image()
-
-    x_copy = x.copy()
-    h, w = x.shape
-
-    components = get_connected_components(x)
-
-    lines = []
-    xc = 1 - x
-    signed_distance = ndimage.distance_transform_edt(
-        xc
-    ) - ndimage.distance_transform_edt(x)
-    signed_distance = signed_distance.reshape(h, w, 1)
-
-    for i in range(h):
-        if len(components) == 0:
-            break
-
-        seam = get_seam(signed_distance)
-        row_indices, column_indices = seam
-        signed_distance[row_indices, column_indices] = 255
-        get_intersections(components, seam, lines)
-
-        print("i", i, "lines #:", len(lines),
-              "num components", len(components))
-
-    for line in lines:
-        visualize_components(line)
-        input("press key\n")
-
-    # todo: store components and line regions in R-trees
-    # todo: compute all H seams in c++
-    # todo: fast graph processing for large images
-
-
-def get_zero_padded_array(image_path, target_height):
-    img = tf.keras.preprocessing.image.load_img(image_path)
-    a = pad_image_height(img, target_height)
-
-    new_height, new_width = a.shape
-
-    if new_width <= target_height:
-        img = tf.keras.preprocessing.image.array_to_img(a)
-        return pad_image(img, target_height, target_height + 1)
-
-    return a
-
-
 def get_image_array(image_path, target_height):
     img = tf.keras.preprocessing.image.load_img(image_path)
 
@@ -659,26 +237,6 @@ def get_image_array(image_path, target_height):
     )
 
     return tf.keras.preprocessing.image.img_to_array(img)
-
-
-def pad_image_height(img, target_height):
-    a = tf.keras.preprocessing.image.img_to_array(img)
-
-    height = a.shape[0]
-
-    padding_amount = target_height - height
-
-    assert padding_amount >= 0
-
-    top_padding = padding_amount // 2
-    if padding_amount % 2 == 0:
-        vertical_padding = (top_padding, top_padding)
-    else:
-        vertical_padding = (top_padding, top_padding + 1)
-
-    horizontal_padding = (0, 0)
-    depth_padding = (0, 0)
-    return scipy.pad(a, pad_width=[vertical_padding, horizontal_padding, depth_padding])
 
 
 def pad_array_width(a, target_width):
@@ -699,10 +257,9 @@ def pad_array_width(a, target_width):
 def pad_image(img, target_height, target_width):
     a = tf.keras.preprocessing.image.img_to_array(img)
 
-    original_height, original_width, original_channels = a.shape
+    _, _, original_channels = a.shape
 
-    im = np.ones((target_height, target_width, original_channels),
-                 dtype=np.float) * 255
+    im = np.ones((target_height, target_width, original_channels), dtype=np.float) * 255
 
     cropped = a[:target_height, :target_width]
     for i in range(cropped.shape[0]):
@@ -710,30 +267,6 @@ def pad_image(img, target_height, target_width):
             im[i, j, :] = a[i, j, :]
 
     return im
-
-
-def prepare_x(image_path, image_height, should_binarize=True, transform=False):
-    image_array = get_image_array(image_path, image_height)
-    if should_binarize:
-        a = binarize(image_array)
-    else:
-        a = image_array
-
-    if transform:
-        rotation_range = 1
-        shift = 3
-        zoom = 0.01
-        image_gen = tf.keras.preprocessing.image.ImageDataGenerator(
-            rotation_range=rotation_range,
-            width_shift_range=shift,
-            height_shift_range=shift,
-            zoom_range=zoom,
-        )
-        gen = image_gen.flow(np.array([a]), batch_size=1)
-
-        a = next(gen)[0]
-
-    return a / 255.0
 
 
 def binarize(image_array, threshold=200, invert=True):
@@ -801,15 +334,6 @@ class BaseGenerator:
     def __iter__(self):
         raise NotImplementedError
 
-
-def get_dictionary():
-    dictionary = []
-    with open("words_dataset/dictionary.txt") as f:
-        for i, line in enumerate(f.readlines()):
-            dictionary.append(line.rstrip())
-    return dictionary
-
-
 class CompiledDataset:
     def __init__(self, dataset_root):
         self._root = dataset_root
@@ -854,10 +378,7 @@ class LinesGenerator(BaseGenerator):
         self._batch_size = batch_size
         self._augment = augment
 
-        if batch_adapter is None:
-            self._adapter = CTCAdapter()
-        else:
-            self._adapter = batch_adapter
+        self._adapter = batch_adapter
 
         self._ds = CompiledDataset(dataset_root)
 
@@ -902,8 +423,7 @@ class LinesGenerator(BaseGenerator):
 
     def get_example(self, line_index):
         image_path, text = self._ds.get_example(line_index)
-        img = tf.keras.preprocessing.image.load_img(
-            image_path, color_mode="grayscale")
+        img = tf.keras.preprocessing.image.load_img(image_path, color_mode="grayscale")
         a = tf.keras.preprocessing.image.img_to_array(img)
         x = a / 255.0
         y = self.text_to_class_labels(text)
@@ -912,8 +432,7 @@ class LinesGenerator(BaseGenerator):
 
 class CharTable:
     def __init__(self, char_table_path):
-        self._char_to_label, self._label_to_char = self.load_char_table(
-            char_table_path)
+        self._char_to_label, self._label_to_char = self.load_char_table(char_table_path)
 
         self._max_label = max(self._label_to_char.keys())
 
@@ -952,11 +471,17 @@ class CharTable:
 
         return self._label_to_char[class_label]
 
-class IAM():
+
+class IAM:
     """
     Class for reading the IAM dataset
     """
-    def __init__(self, path="/media/hdd/github/handwriting_recog_codes/data/IAM-data/", subset=None):
+
+    def __init__(
+        self,
+        path="/media/hdd/github/handwriting_recog_codes/data/IAM-data/",
+        subset=None,
+    ):
         self.main_path = Path(path)
         self.images_path = self.main_path / "img"
         self.labels_path = self.main_path / "iam_lines_gt.txt"
@@ -992,6 +517,7 @@ class IAM():
                 else:
                     continue
         return images, labels
+
 
 if __name__ == "__main__":
     import argparse

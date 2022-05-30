@@ -12,20 +12,18 @@ from xml.etree.ElementTree import ParseError
 import networkx as nx
 import numpy as np
 import scipy
+import tensorboard
 import tensorflow as tf
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 from scipy import ndimage
 from tensorflow.keras.callbacks import Callback
 from tqdm import tqdm
 
-from utilsiam import *
 from datautils import *
+from utilsiam import *
 
 
 class HTRModel:
-    def get_preprocessor(self):
-        raise NotImplementedError
-
     def get_adapter(self):
         raise NotImplementedError
 
@@ -65,11 +63,6 @@ class HTRModel:
     @staticmethod
     def create(model_path):
         return CtcModel.load(model_path)
-
-def compute_output_shape(input_shape):
-    height, width, channels = input_shape
-    new_width = width // 2 // 2 // 2
-    return new_width, 80
 
 
 def create_conv_model(channels=3):
@@ -157,25 +150,11 @@ class CtcModel(HTRModel):
         x = tf.keras.layers.Dropout(rate=0.5)(x)
         x = lstm(x)
 
-        x = tf.keras.layers.Dropout(rate=0.5)(x)
-        x = tf.keras.layers.Bidirectional(
-            tf.keras.layers.LSTM(units, return_sequences=True)
-        )(x)
-
-        x = tf.keras.layers.Dropout(rate=0.5)(x)
-        x = tf.keras.layers.Bidirectional(
-            tf.keras.layers.LSTM(units, return_sequences=True)
-        )(x)
-
-        x = tf.keras.layers.Dropout(rate=0.5)(x)
-        x = tf.keras.layers.Bidirectional(
-            tf.keras.layers.LSTM(units, return_sequences=True)
-        )(x)
-
-        x = tf.keras.layers.Dropout(rate=0.5)(x)
-        x = tf.keras.layers.Bidirectional(
-            tf.keras.layers.LSTM(units, return_sequences=True)
-        )(x)
+        for _ in range(4):
+            x = tf.keras.layers.Dropout(rate=0.5)(x)
+            x = tf.keras.layers.Bidirectional(
+                tf.keras.layers.LSTM(units, return_sequences=True)
+            )(x)
 
         x = tf.keras.layers.Dropout(rate=0.5)(x)
         self.y_pred = densor(x)
@@ -221,15 +200,8 @@ class CtcModel(HTRModel):
         training_params=None,
         **kwargs
     ):
-        # print(train_generator.batch_dim)
-        # train_np = train_generator.numpy()
-        # val_np = val_generator.numpy()
         steps_per_epoch = math.ceil(train_generator.size / train_generator.batch_size)
         val_steps = math.ceil(val_generator.size / val_generator.batch_size)
-        # print(len(train_generator))
-        # steps_per_epoch = math.ceil(tf.data.experimental.cardinality(train_generator).numpy() / len(train_generator))
-        # val_steps = math.ceil(tf.data.experimental.cardinality(val_generator).numpy() / len(val_generator))
-        # print(steps_per_epoch, val_steps)
 
         loss = self._get_loss()
         lr = 0.001
@@ -239,10 +211,7 @@ class CtcModel(HTRModel):
         compilation_params = compilation_params or {}
         training_params = training_params or {}
 
-        if "optimizer" in compilation_params:
-            optimizer = compilation_params["optimizer"]
-        else:
-            optimizer = tf.keras.optimizers.Adam(lr=lr)
+        optimizer = tf.keras.optimizers.Adam(lr=lr)
 
         if "metrics" in compilation_params:
             metrics = compilation_params["metrics"]
@@ -250,23 +219,15 @@ class CtcModel(HTRModel):
             metrics = []
 
         training_model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
-        # print(train_generator.__iter__)
 
         training_model.fit(
             train_generator.__iter__(),
-            # steps_per_epoch=steps_per_epoch,
             validation_data=val_generator.__iter__(),
-            # validation_steps=val_steps,
             **training_params
         )
 
     def _get_inference_model(self):
         return self._create_inference_model()
-
-    def get_preprocessor(self):
-        preprocessor = Cnn1drnnCtcPreprocessor()
-        preprocessor.configure(**self._preprocessing_options)
-        return preprocessor
 
     def get_adapter(self):
         return CTCAdapter()
@@ -274,7 +235,8 @@ class CtcModel(HTRModel):
     def predict(self, inputs, **kwargs):
         X, input_lengths = inputs
         ypred = self._get_inference_model().predict(X)
-        labels = decode_greedy(ypred, input_lengths)
+        # labels = decode_greedy(ypred, input_lengths)
+        labels = beam_search_decode(ypred, input_lengths)
         return labels
 
     def save(self, path, preprocessing_params):
@@ -320,36 +282,11 @@ class CtcModel(HTRModel):
         return {"ctc": lambda y_true, y_pred: y_pred}
 
 
-def decode_greedy(inputs, input_lengths):
-    with tf.compat.v1.Session() as sess:
-        inputs = tf.transpose(inputs, [1, 0, 2])
-        decoded, _ = tf.nn.ctc_greedy_decoder(inputs, input_lengths.flatten())
-
-        dense = tf.sparse.to_dense(decoded[0])
-        res = sess.run(dense)
-        return res
-
-
-def beam_search_decode(inputs, input_lengths):
-    with tf.compat.v1.Session() as sess:
-        inputs = tf.transpose(inputs, [1, 0, 2])
-        decoded, log_probs = tf.nn.ctc_beam_search_decoder(
-            inputs, input_lengths.flatten(), beam_width=10
-        )
-        print(log_probs)
-        dense = tf.sparse.to_dense(decoded[0])
-        res = sess.run(dense)
-        return res
-
-
 class BatchAdapter:
     def fit(self, batches):
         pass
 
     def adapt_x(self, image):
-        raise NotImplementedError
-
-    def adapt_batch(self, batch):
         raise NotImplementedError
 
     def _pad_labellings(self, labellings, target_length, padding_code=0):
@@ -417,15 +354,6 @@ class CTCAdapter(BatchAdapter):
         return X, input_lengths
 
 
-def predict_labels(model, X, input_lengths, beam_search=False):
-    densities = model.predict(X)
-
-    if beam_search:
-        predicted_labels = beam_search_decode(densities, input_lengths)
-    else:
-        predicted_labels = decode_greedy(densities, input_lengths)
-    return predicted_labels.tolist()
-
 def fit_model(
     model,
     train_path,
@@ -467,8 +395,11 @@ def fit_model(
         steps=5,
         interval=debug_interval,
     )
+    tensorboardcall = tf.keras.callbacks.TensorBoard(
+        log_dir="./logs", histogram_freq=0, write_graph=True
+    )
 
-    callbacks = [checkpoint, CER_metric]
+    callbacks = [checkpoint, CER_metric, tensorboardcall]
 
     compilation_params = dict(optimizer=tf.keras.optimizers.Adam(lr=lr))
     training_params = dict(epochs=epochs, callbacks=callbacks)
@@ -477,15 +408,15 @@ def fit_model(
 
 def fit_ctc_model(args):
     dataset_path = args.ds
-    model_save_path = args.model_path
+    model_save_path = "conv_lstm_model"
     batch_size = args.batch_size
     units = args.units
     lr = args.lr
     epochs = args.epochs
-    debug_interval = args.debug_interval
-    augment = args.augment
+    debug_interval = 10
+    augment = None  # for now
 
-    print("augment is {}".format(augment))
+    # print("augment is {}".format(augment))
 
     train_path = os.path.join(dataset_path, "train")
     val_path = os.path.join(dataset_path, "validation")
