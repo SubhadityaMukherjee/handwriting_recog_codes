@@ -75,7 +75,6 @@ def fixRotation(image):
         if(stdOfTemp > stdOfBest):
             bestImage = tempImage
             stdOfBest = stdOfTemp
-    cv2.imwrite("rotatedImage.png", bestImage)
     return bestImage
 
 
