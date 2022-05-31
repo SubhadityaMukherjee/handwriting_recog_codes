@@ -159,7 +159,7 @@ def beam_search_decode(inputs, input_lengths):
         decoded, log_probs = tf.nn.ctc_beam_search_decoder(
             inputs, input_lengths.flatten(), beam_width=10
         )
-        print(log_probs)
+        # print(log_probs)
         dense = tf.sparse.to_dense(decoded[0])
         res = sess.run(dense)
         return res
