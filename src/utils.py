@@ -8,6 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import *
 from tqdm import tqdm
+import cv2
 from PIL import Image
 from tensorflow import keras
 import tensorflow as tf
@@ -16,6 +17,7 @@ import matplotlib.pyplot as plt
 # from IPython.display import Image
 
 import numpy as np
+
 """
 This module contains all the general add ons
 """
@@ -61,7 +63,12 @@ def iam_data_reader(images_path, labels_path, image_size, subset=None):
                 # images.append(np.array(Image.open(fname).convert("L").resize(image_size, Image.Resampling.BILINEAR)))
                 images.append(fname)
             elif len(line) > 1:
-                labels.append(line.strip())
+                # labels.append(line.strip())
+                string_encode = line.lower().strip().encode("ascii", "ignore")
+                string_decode = string_encode.decode()
+                labels.append(string_decode)
+
+                # print(line)
             else:
                 continue
     return images, labels
@@ -73,14 +80,19 @@ def vocabulary_size(y_train):
     """
     train_labels_cleaned = []
     characters = set()
+    chars = []
     max_len = 0
 
     for label in y_train:
         for char in label:
             characters.add(char)
+            chars.append(char)
+        label = clean_labels(label)
 
-        max_len = max(max_len, len(label))
         train_labels_cleaned.append(label)
+        max_len = max(max_len, len(chars))
+        chars = []
+    print(train_labels_cleaned[:3])
 
     print("Maximum length: ", max_len)
     print("Vocab size: ", len(characters))
@@ -91,11 +103,7 @@ def clean_labels(labels):
     """
     Clean the labels and return a list of cleaned labels.
     """
-    cleaned_labels = []
-    for label in labels:
-        label = label.split(" ")[-1].strip()
-        cleaned_labels.append(label)
-    return cleaned_labels
+    return [x.strip() for x in labels.split(" ")]
 
 
 def distortion_free_resize(image, img_size):
@@ -135,6 +143,28 @@ def distortion_free_resize(image, img_size):
     return image
 
 
+"""
+Preprocessing for images in DeadSea Scrolls
+"""
+
+
+def preprocess(image):
+    grayscale = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    kernelSize = 7
+    maxKernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernelSize, kernelSize))
+
+    morphClose = cv2.morphologyEx(grayscale, cv2.MORPH_CLOSE, maxKernel)
+
+    kernelSize = 3
+    maxKernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernelSize, kernelSize))
+
+    morphOpen = cv2.morphologyEx(morphClose, cv2.MORPH_OPEN, maxKernel)
+
+
+    return morphOpen
+
+
 class StoreAndProcess:
     """
     A class to store and process the images and labels
@@ -159,21 +189,28 @@ class StoreAndProcess:
     def vectorize_label(self, label):
         label = self.params["char_to_num"](tf.strings.unicode_split(
             label, input_encoding="UTF-8"))
+
+        # print(label)
         length = tf.shape(label)[0]
         pad_amount = self.params["max_len"] - length
+        # if length < 77:
+        #     pad_amount = 77 - length
+        # else:
+        #     pad_amount = 0
+        # pad_amount = 200
         label = tf.pad(label, paddings=[[0, pad_amount]],
                        constant_values=self.params["padding_token"])
         return label
 
-    def process_images_labels(self, image_path, label):
-        image = self.load_and_preprocess_image_iam(image_path)
-        label = self.vectorize_label(label)
-        return {"image": image, "label": label}
-
     def prepare_dataset(self, image_paths, labels):
-        dataset = tf.data.Dataset.from_tensor_slices((image_paths, labels)).map(
-            self.process_images_labels, num_parallel_calls=tf.data.AUTOTUNE
-        )
+        labels = list(map(lambda x: self.vectorize_label(" ".join(x)), labels))
+        image_paths = list(map(lambda x: self.load_and_preprocess_image_iam(x), image_paths))
+        dict_k = {"image": image_paths, "label": labels}
+
+        dataset = tf.data.Dataset.from_tensor_slices(dict_k)
+        # dataset = tf.data.Dataset.from_tensor_slices((image_paths, labels)).map(
+        # self.process_images_labels, num_parallel_calls=tf.data.AUTOTUNE
+        # )
         return dataset.batch(self.params["batch_size"])
 
     def view_batch(self, train_ds):
@@ -197,6 +234,7 @@ class StoreAndProcess:
 
                 # Gather indices where label!= padding_token.
                 label = labels[i]
+                print(label)
                 indices = tf.gather(label, tf.where(
                     tf.math.not_equal(label, self.params["padding_token"])))
                 # Convert to string.

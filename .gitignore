@@ -17,7 +17,11 @@ __pycache__/*
 *.csv
 tags
 data/
+src/data/
 *.h5
 new_data/
 .venv/
 loss.pdf
+/src/lines/
+temp_ds
+conv_lstm_model
