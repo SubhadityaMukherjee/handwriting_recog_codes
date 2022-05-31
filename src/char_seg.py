@@ -43,7 +43,7 @@ def checkMerge(box1, box2):
 def cleanBoxes(box, bbox):
     # Bounding box is saved only if it is 25 pixels or bigger
     # This eliminates small bounding boxes on noise
-    if (box[2] < 25) or (box[3] < 25):
+    if (box[2] < 20) or (box[3] < 20):
         return
     # 1 character is somewhere between 25-40 pixels and 75 pixels in width
     # These characters are directly returned
@@ -144,14 +144,15 @@ def oneLineProcessing(img_str, line):
 
 def charSegmentation(imagesPath):
     for img in tqdm(imagesPath):
-        imgPath = os.listdir("lines/" + str(img) + "/")
-
-        for line in imgPath:
-            if str(img) == "x":
-                break
-            elif str(img) == "bbox":
-                break
-            oneLineProcessing(img_str=img, line=line)
+        print(img)
+        if img != ".DS_Store":
+            imgPath = os.listdir("lines/" + str(img) + "/")
+            for line in imgPath:
+                if str(img) == "x":
+                    break
+                elif str(img) == "bbox":
+                    break
+                oneLineProcessing(img_str=img, line=line)
 
 
 if __name__ == "__main__":

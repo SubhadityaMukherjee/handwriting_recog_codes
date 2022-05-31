@@ -7,8 +7,6 @@ import os
 import sys
 from pathlib import Path
 from scipy.signal import find_peaks
-import imutils
-
 
 def importImagePaths(main_path):  # Return the paths to the images
     list_of_binarized_paths = [str(main_path/x)
@@ -136,7 +134,7 @@ def makeImageFolder(folderName):
 
 # Returns an array with the stripes and the blocks in each stripe.
 # tshPLow and tshPHigh determine the threshold for low and high density images respectively
-def createStripesAndBlocks(image, numOfStripes=1, tshPLow=4, tshPHigh=2.5, maxNumOfBlocks=40, maxRowsPerBlock=2000):
+def createStripesAndBlocks(image, numOfStripes=2, tshPLow=3, tshPHigh=2.5, maxNumOfBlocks=40, maxRowsPerBlock=2000):
     """
     numOfStripes : The number of vertical stripes the image is cut into
     pxlThreshold : The number of black pixels that a row of pixels within a stripe needs to contain to be considered a text line
