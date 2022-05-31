@@ -22,6 +22,21 @@ import tensorflow as tf
 from tensorflow import keras
 from sklearn.model_selection import train_test_split
 from tensorflow.keras import layers
+from tensorflow.keras.utils import plot_model
+from tensorflow.keras.layers import (
+    Activation,
+    Dense,
+    Dropout,
+    Flatten,
+    GlobalAveragePooling2D,
+)
+# from tensorflow.keras.models import Model, Sequential
+from tensorflow.keras import applications
+from tensorflow.python.keras import backend as K 
+from tensorflow.keras import Model
+# import hiddenlayer as hl
+# import hiddenlayer.transforms as ht
+
 
 from tensorflow.keras.layers import *
 
@@ -65,83 +80,72 @@ test_dataset = test_dataset.batch(batch_size)
 
 # %%
 #TODO Add data aug
+# brightness, elastic transform, shear, scale, gaussian blur, dilate, erode 
 # data_augmentation = keras.Sequential(
 #     [
-
 #     ]
 # )
 
-def make_model():
-    """
-    Just a placeholder classification model. Need to modify
-    """
-    model = tf.keras.Sequential([
-        tf.keras.layers.Conv2D(32, kernel_size=(3, 3),
-                 activation='relu',
-                 input_shape=(28,28,1)),
-        tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
-        tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
-        tf.keras.layers.Dropout(0.25),
-        tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(128, activation='relu'),
-        tf.keras.layers.Dropout(0.5),
-        tf.keras.layers.Dense(27, activation='softmax')
-
-        # keras.Input(shape=(None,28,28,1), name="image"),
-        #tf.keras.layers.Conv2D(28, (3, 3), activation='relu', input_shape=(28, 28, 1)),
-        # tf.keras.layers.Conv2D(filters=32, kernel_size=(3, 3), activation='relu'),
-        # tf.keras.layers.MaxPooling2D((2, 2)),
-        # tf.keras.layers.Flatten(128),
-        # tf.keras.layers.Dense(128, activation='relu'),
-        #tf.keras.layers.Dense(num_classes, activation='softmax')
-
-        # tf.keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=input_shape),
-        # tf.keras.layers.MaxPooling2D((2, 2), strides=2),
-        # tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same'),
-        # tf.keras.layers.MaxPooling2D((2, 2), strides=2),
-        # tf.keras.layers.Conv2D(filters=128, kernel_size=(3,3), activation='relu', padding='valid'),
-        # tf.keras.layers.MaxPooling2D((2, 2), strides=2),
-        # tf.keras.layers.Flatten(),
-        # tf.keras.layers.Dense(64, activation='relu'),
-        # tf.keras.layers.Dense(128, activation='relu'),
-        # tf.keras.layers.Dense(26, activation='softmax')
-    ])
+def make_model(model_type):
+    if model_type == "CNN":
+        model = tf.keras.Sequential([
+            #convolutional layer with rectified linear unit activation
+            # kernel size used to be 3, 3
+            tf.keras.layers.Conv2D(32, kernel_size=(5, 5),
+                    activation='relu',
+                    input_shape=(28,28,1)),
+            tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+            tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
+            tf.keras.layers.Dropout(0.25),
+            tf.keras.layers.Flatten(),
+            tf.keras.layers.Dense(128, activation='relu'),
+            tf.keras.layers.Dropout(0.5),
+            tf.keras.layers.Dense(27, activation='softmax') 
+        ])
+    elif model_type == "ResNet":
+        model=applications.ResNet50(weights=None, include_top=False)
+        x = model.output
+        #x = GlobalAveragePooling2D()(x)
+        x = Dense(512, activation='relu')(x)
+        predictions = Dense(131, activation='softmax')(x)
+        model = Model(inputs=model.input, outputs=predictions)
+    else: 
+        pass
     return model
 
 
-model = make_model()
-
-# model = tf.keras.Sequential()
-# #convolutional layer with rectified linear unit activation
-# model.add(Conv2D(32, kernel_size=(3, 3),
-#                  activation='relu',
-#                  input_shape=(28,28,1)))
-# #32 convolution filters used each of size 3x3
-# #again
-# model.add(Conv2D(64, (3, 3), activation='relu'))
-# #64 convolution filters used each of size 3x3
-# #choose the best features via pooling
-# model.add(MaxPooling2D(pool_size=(2, 2)))
-# #randomly turn neurons on and off to improve convergence
-# model.add(Dropout(0.25))
-# #flatten since too many dimensions, we only want a classification output
-# model.add(Flatten())
-# #fully connected to get all relevant data
-# model.add(Dense(128, activation='relu'))
-# #one more dropout for convergence' sake :) 
-# model.add(Dropout(0.5))
-# #output a softmax to squash the matrix into output probabilities
-# model.add(Dense(27, activation='softmax'))
+model = make_model("CNN")
 
 print(model.summary())
+plot_model(model, to_file="model.png", show_shapes=False)
 
 model.compile(optimizer=tf.keras.optimizers.RMSprop(),
               loss=tf.keras.losses.SparseCategoricalCrossentropy(),
               metrics=[
-                  tf.keras.metrics.SparseCategoricalAccuracy()
+                  'accuracy'
 ])
 
-model.fit(train_dataset, epochs=20, callbacks=[
+# TODO: add validation split? 
+history = model.fit(train_dataset, validation_data=test_dataset, epochs=20, callbacks=[
     tf.keras.callbacks.ModelCheckpoint("./logs/save_at_{epoch}.h5"),
 ],
 )
+
+plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
+plt.title('Model accuracy')
+plt.ylabel('Accuracy')
+plt.xlabel('Epoch')
+plt.legend(['train', 'val'], loc='upper left')
+plt.savefig('accuracy.png', dpi=300)
+plt.clf()
+
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('Model loss')
+plt.ylabel('Loss')
+plt.xlabel('Epoch')
+plt.legend(['train', 'val'], loc='upper left')
+plt.savefig('loss.png', dpi=300)
+
+
