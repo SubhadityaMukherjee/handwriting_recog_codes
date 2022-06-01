@@ -4,7 +4,7 @@
 - While you are still in the container, you can run the following commands to reproduce the results.
 - cd /hwr/src/iam
 ### Testing
-- For a folder of images. (Can just be run directly). The results will be saved in the folder results/predictions.txt
+- For a folder of images. (Can just be run directly). The results will be saved in the folder results/iam_predictions as requested
   - python3 test.py --folder somefolder/
 - For a single image. (Can just be run directly)
   - python3 test.py --imagepath someimage.jpg
