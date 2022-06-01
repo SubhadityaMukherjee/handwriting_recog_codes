@@ -1,5 +1,23 @@
 # Steps to reproduce
-- Get all the data and put it in a data folder
+- docker run -i -t group3hwr/hwrproject:1.0.0 bash && cd hwr/
+## Task 3 : IAM
+- While you are still in the container, you can run the following commands to reproduce the results.
+- cd /hwr/src/iam
+### Testing
+- For a folder of images. (Can just be run directly). The results will be saved in the folder results/predictions.txt
+  - python3 test.py --folder somefolder/
+- For a single image. (Can just be run directly)
+  - python3 test.py --imagepath someimage.jpg
+- To run the evaluation on the validation or test set, you need to first have run the preprocessing step (1) that saves the dataset to the `temp_ds/` directory.
+  - python3 test.py --dataset temp_ds/test 
+
+### Training if required
+- To generate the train/test/val data -(1)
+    - python3 datautils.py
+- To run the actual training
+    - python3 train.py temp_ds/train/
+- The output models are saved in the folder conv_lstm_model/
+
 
 ## Useful
 - IAM Data: https://keras.io/examples/vision/handwriting_recognition/
