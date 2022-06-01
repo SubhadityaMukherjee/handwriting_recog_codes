@@ -2,7 +2,10 @@ import math
 import os
 import pathlib
 from glob import glob
+from tqdm import tqdm
+import pandas as pd
 
+import concurrent.futures
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from IPython.display import Image
@@ -10,6 +13,7 @@ from IPython.display import Image
 from datautils import *
 from models import *
 from utilsiam import *
+from spellcheck import SpellCheck
 
 # from keras.utils.vis_utils import plot_model
 
@@ -47,7 +51,8 @@ def run_demo(model, gen, char_table, adapter):
         image = tf.keras.preprocessing.image.load_img(
             image_path, color_mode="grayscale"
         )
-        expected_labels = [[char_table.get_label(ch) for ch in ground_true_text]]
+        expected_labels = [
+            [char_table.get_label(ch) for ch in ground_true_text]]
 
         inputs = adapter.adapt_x(image)
 
@@ -71,23 +76,29 @@ def single_prediction(image_path, model, char_table, adapter):
     """
     Runs the model on a single image and displays the results.
     """
-    image = tf.keras.preprocessing.image.load_img(image_path, color_mode="grayscale")
-    inputs = adapter.adapt_x(image)
-    predictions = model.predict(inputs)
-    predicted_text = codes_to_string(predictions[0], char_table)
-    print('Predicted: "{}"'.format(predicted_text))
+    try:
+        image = tf.keras.preprocessing.image.load_img(
+            image_path, color_mode="grayscale")
+        inputs = adapter.adapt_x(image)
+        predictions = model.predict(inputs)
+        predicted_text = codes_to_string(predictions[0], char_table)
+        return predicted_text
+    except:
+        return ""
 
 
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("model", type=str)
     parser.add_argument("--dataset", type=str, default=None)
     parser.add_argument("--imagepath", type=str, default=None)
+    parser.add_argument("--folder", type=str, default=None)
     args = parser.parse_args()
 
-    model_path = args.model
+    model_path = "conv_lstm_model"
+
+    sp = SpellCheck("../../data/IAM-data/iam_lines_gt.txt")
     if args.dataset is not None:
         dataset_path = args.dataset
         char_table_path = os.path.join(
@@ -104,6 +115,38 @@ if __name__ == "__main__":
         cer_score = run_demo(model, ds, char_table, adapter=adapter)
         print(f"Avg cer {cer_score}")
 
+    elif args.folder is not None:
+        folder = args.folder
+        char_table_path = "char_table_single_im.txt"
+        char_table = CharTable(char_table_path)
+
+        model = HTRModel.create(model_path)
+
+        adapter = model.get_adapter()
+        files = os.listdir(folder)
+        files = [f for f in files if f.endswith(".png")]
+        l  = len(files)
+        shutil.rmtree("results/iam_predictions", ignore_errors=True)
+        if not os.path.exists("results/iam_predictions"):
+            os.makedirs("results/iam_predictions")
+
+        def process_file(file):
+            image_path = os.path.join(folder, file)
+            predicted_text = single_prediction(image_path, model, char_table, adapter)
+            with open(f"results/iam_predictions/{file.split('.')[0]}.txt", "w") as f:
+                f.write(f"{predicted_text}")
+
+            return predicted_text
+
+        with tqdm(total=l) as pbar:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+                futures = {executor.submit(process_file, arg): arg for arg in files}
+                results = {}
+                for future in concurrent.futures.as_completed(futures):
+                    arg = futures[future]
+                    results[arg] = future.result()
+                    pbar.update(1)
+            
     else:
         dataset_path = args.imagepath
         char_table_path = "char_table_single_im.txt"
@@ -113,3 +156,6 @@ if __name__ == "__main__":
 
         adapter = model.get_adapter()
         pred = single_prediction(args.imagepath, model, char_table, adapter)
+
+        print('Predicted: "{}"'.format(pred))
+        print('Corrected: "{}"'.format(sp.correct(pred)))
