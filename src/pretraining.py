@@ -34,6 +34,7 @@ from tensorflow.keras.layers import (
 from tensorflow.keras import applications
 from tensorflow.python.keras import backend as K 
 from tensorflow.keras import Model
+import tensorflow_datasets as tfds
 # import hiddenlayer as hl
 # import hiddenlayer.transforms as ht
 
@@ -47,6 +48,7 @@ This is the training code for Dead Sea scrolls character recognition
 # %%
 # Define defaults
 # TODO: Change to args
+# TODO: switch with new data folde r
 main_path = Path("data/")
 dss_path = main_path / "monkbrill"
 # print(dss_path)
@@ -79,45 +81,42 @@ train_dataset = train_dataset.shuffle(100).batch(batch_size)
 test_dataset = test_dataset.batch(batch_size)
 
 # %%
+# Data augmentation
+
 #TODO Add data aug
 # brightness, elastic transform, shear, scale, gaussian blur, dilate, erode 
+#TODO: Check old code for how this works 
 # data_augmentation = keras.Sequential(
 #     [
+#         tf.nn.erosion2d(3, (3, 3), padding='same'),
+#         tf.nn.dilation2d(3, (3, 3), padding='same'),
 #     ]
 # )
 
-def make_model(model_type):
-    if model_type == "CNN":
-        model = tf.keras.Sequential([
-            #convolutional layer with rectified linear unit activation
-            # kernel size used to be 3, 3
-            tf.keras.layers.Conv2D(32, kernel_size=(5, 5),
-                    activation='relu',
-                    input_shape=(28,28,1)),
-            tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
-            tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
-            tf.keras.layers.Dropout(0.25),
-            tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(128, activation='relu'),
-            tf.keras.layers.Dropout(0.5),
-            tf.keras.layers.Dense(27, activation='softmax') 
-        ])
-    elif model_type == "ResNet":
-        model=applications.ResNet50(weights=None, include_top=False)
-        x = model.output
-        #x = GlobalAveragePooling2D()(x)
-        x = Dense(512, activation='relu')(x)
-        predictions = Dense(131, activation='softmax')(x)
-        model = Model(inputs=model.input, outputs=predictions)
-    else: 
-        pass
+#%% 
+# Build model
+
+def make_model():
+    model = tf.keras.Sequential([
+        #convolutional layer with rectified linear unit activation
+        # kernel size used to be 3, 3
+        tf.keras.layers.Conv2D(32, kernel_size=(5, 5),
+                activation='relu',
+                input_shape=(28,28,1)),
+        tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+        tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
+        tf.keras.layers.Dropout(0.25),
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(128, activation='relu'),
+        tf.keras.layers.Dropout(0.5),
+        tf.keras.layers.Dense(27, activation='softmax') 
+    ])
     return model
 
 
-model = make_model("CNN")
+model = make_model()
 
 print(model.summary())
-plot_model(model, to_file="model.png", show_shapes=False)
 
 model.compile(optimizer=tf.keras.optimizers.RMSprop(),
               loss=tf.keras.losses.SparseCategoricalCrossentropy(),
@@ -125,11 +124,20 @@ model.compile(optimizer=tf.keras.optimizers.RMSprop(),
                   'accuracy'
 ])
 
-# TODO: add validation split? 
 history = model.fit(train_dataset, validation_data=test_dataset, epochs=20, callbacks=[
     tf.keras.callbacks.ModelCheckpoint("./logs/save_at_{epoch}.h5"),
 ],
 )
+
+#TODO save model 
+
+#TODO get the monkbril data 
+
+#TODO model.load saved model 
+
+#TODO model.fit
+
+#TODO: make same model but model.load before fitting but after make_model 
 
 plt.plot(history.history['accuracy'])
 plt.plot(history.history['val_accuracy'])
@@ -147,5 +155,4 @@ plt.ylabel('Loss')
 plt.xlabel('Epoch')
 plt.legend(['train', 'val'], loc='upper left')
 plt.savefig('loss.png', dpi=300)
-
 
