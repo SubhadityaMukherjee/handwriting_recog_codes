@@ -120,14 +120,19 @@ if __name__ == "__main__":
         model = HTRModel.create(model_path)
 
         adapter = model.get_adapter()
-        dict_outs = {}
         files = os.listdir(folder)
         files = [f for f in files if f.endswith(".png")]
         l  = len(files)
+        shutil.rmtree("results/iam_predictions", ignore_errors=True)
+        if not os.path.exists("results/iam_predictions"):
+            os.makedirs("results/iam_predictions")
+
         def process_file(file):
             image_path = os.path.join(folder, file)
             predicted_text = single_prediction(image_path, model, char_table, adapter)
-            dict_outs[file] = predicted_text
+            with open(f"results/iam_predictions/{file.split('.')[0]}.txt", "w") as f:
+                f.write(f"{predicted_text}")
+
             return predicted_text
 
         with tqdm(total=l) as pbar:
@@ -138,11 +143,7 @@ if __name__ == "__main__":
                     arg = futures[future]
                     results[arg] = future.result()
                     pbar.update(1)
-        fnames = dict_outs.keys()
-        with open("results/predictions.txt", "w") as f:
-            for fname in fnames:
-                f.write(f"{fname}\n{dict_outs[fname]}\n\n")
-
+            
     else:
         dataset_path = args.imagepath
         char_table_path = "char_table_single_im.txt"
