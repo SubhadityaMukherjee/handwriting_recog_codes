@@ -1,5 +1,8 @@
+from glob import glob
+from operator import le
 from fuzzywuzzy import fuzz
 from tqdm import tqdm
+import concurrent.futures
 
 
 class SpellCheck:
@@ -20,28 +23,16 @@ class SpellCheck:
                     string_encode = line.lower().strip().encode("ascii", "ignore")
                     string_decode = string_encode.decode()
                     string_decode = string_decode.split(" ")
-                    string_decode = [x for x in string_decode if len(x) > 1]
+                    string_decode = list(set([x for x in string_decode if len(x) > 1]))
                     labels.extend(string_decode)
                 else:
                     continue
         return labels
-
-    def check(self, string_to_check):
-        self.string_to_check = string_to_check
-
-    def suggestions(self):
-        # string_words = self.string_to_check.split()
-        suggestions = []
-        for i in range(len(string_words)):
-            for name in self.dictionary:
-                if fuzz.ratio(string_words[i].lower(), name.lower()) >= 75:
-                    suggestions.append(name)
-        return suggestions
-
     def correct(self, string_to_check):
         # string_words = self.string_to_check.split()
         string_words = string_to_check.split(" ")
-        for i in tqdm(range(len(string_words))):
+        l = len(string_words)
+        def parallel_check(i):
             max_percent = 0
             for name in self.dictionary:
                 percent = fuzz.ratio(string_words[i].lower(), name.lower())
@@ -50,7 +41,13 @@ class SpellCheck:
                         string_words[i] = name
                     max_percent = percent
 
+        with tqdm(total=l) as pbar:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+                futures = {executor.submit(parallel_check, arg): arg for arg in [i for i in range(l)]}
+                results = {}
+                for future in concurrent.futures.as_completed(futures):
+                    arg = futures[future]
+                    results[arg] = future.result()
+                    pbar.update(1)
         return " ".join(string_words)
-
-sp = SpellCheck("../../data/IAM-data/iam_lines_gt.txt")
-print(sp.correct("eln tht,esd ndlostead. neltio,ns,. tho,ese,y ,excshlaing2ens benre, so.t"))
+        

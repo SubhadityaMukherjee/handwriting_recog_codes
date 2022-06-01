@@ -17,14 +17,17 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 from scipy import ndimage
 from tensorflow.keras.callbacks import Callback
 from tqdm import tqdm
+from spellcheck import SpellCheck
 
 
 class LEREvaluator:
-    def __init__(self, model, gen, steps, char_table):
+    def __init__(self, model, gen, steps, char_table, spellche = None):
         self._model = model
         self._gen = gen
         self._steps = steps or 10
         self._char_table = char_table
+        if spellche is not None:
+            self._spellche = SpellCheck("../../data/IAM-data/iam_lines_gt.txt")
 
     def evaluate(self):
         scores = []
@@ -34,18 +37,18 @@ class LEREvaluator:
             if i > self._steps:
                 break
 
-            image_path, ground_true_text = example
-            image = tf.keras.preprocessing.image.load_img(
-                image_path, color_mode="grayscale"
-            )
+            image, ground_true_text = example
+            print(ground_true_text)
 
             expected_labels = [
                 [self._char_table.get_label(ch) for ch in ground_true_text]
             ]
             inputs = adapter.adapt_x(image)
 
-            predictions = self._model.predict(inputs)
-            cer = compute_cer(expected_labels, predictions.tolist())[0]
+            predictions = self._model.predict(inputs).to_list()
+            if self._spellche is not None:
+                predictions = self._spellche.correct(predictions)
+            cer = compute_cer(expected_labels, )[0]
             scores.append(cer)
 
         return np.array(scores).mean()

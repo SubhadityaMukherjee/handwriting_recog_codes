@@ -13,6 +13,7 @@ from IPython.display import Image
 from datautils import *
 from models import *
 from utilsiam import *
+from spellcheck import SpellCheck
 
 # from keras.utils.vis_utils import plot_model
 
@@ -96,6 +97,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     model_path = "conv_lstm_model"
+
+    sp = SpellCheck("../../data/IAM-data/iam_lines_gt.txt")
     if args.dataset is not None:
         dataset_path = args.dataset
         char_table_path = os.path.join(
@@ -155,3 +158,4 @@ if __name__ == "__main__":
         pred = single_prediction(args.imagepath, model, char_table, adapter)
 
         print('Predicted: "{}"'.format(pred))
+        print('Corrected: "{}"'.format(sp.correct(pred)))
