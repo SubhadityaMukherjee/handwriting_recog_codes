@@ -138,8 +138,10 @@ if __name__ == "__main__":
                     arg = futures[future]
                     results[arg] = future.result()
                     pbar.update(1)
-        df = pd.DataFrame.from_dict(dict_outs, orient="index")
-        df.to_csv("results/predictions.csv")
+        fnames = dict_outs.keys()
+        with open("results/predictions.txt", "w") as f:
+            for fname in fnames:
+                f.write(f"{fname}\n{dict_outs[fname]}\n\n")
 
     else:
         dataset_path = args.imagepath
