@@ -334,6 +334,7 @@ class BaseGenerator:
     def __iter__(self):
         raise NotImplementedError
 
+
 class CompiledDataset:
     def __init__(self, dataset_root):
         self._root = dataset_root

@@ -3,8 +3,7 @@ import logging
 import math
 import os
 import random
-import subprocess
-from importlib import import_module
+from multiprocessing import Pool
 from pathlib import Path
 from tabnanny import verbose
 from xml.etree import ElementTree as ET
@@ -173,8 +172,7 @@ class CtcModel(HTRModel):
                 labels, y_pred, input_length, label_length
             )
 
-        labels = tf.keras.layers.Input(
-            name="the_labels", shape=[None], dtype="float32")
+        labels = tf.keras.layers.Input(name="the_labels", shape=[None], dtype="float32")
         input_length = tf.keras.layers.Input(
             name="input_length", shape=[1], dtype="int64"
         )
@@ -202,8 +200,7 @@ class CtcModel(HTRModel):
         training_params=None,
         **kwargs
     ):
-        steps_per_epoch = math.ceil(
-            train_generator.size / train_generator.batch_size)
+        steps_per_epoch = math.ceil(train_generator.size / train_generator.batch_size)
         val_steps = math.ceil(val_generator.size / val_generator.batch_size)
 
         loss = self._get_loss()
@@ -222,8 +219,13 @@ class CtcModel(HTRModel):
             metrics = []
 
         training_model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
-        training_model.fit(train_generator.__iter__(), steps_per_epoch=steps_per_epoch,
-                           validation_data=val_generator.__iter__(), validation_steps=val_steps, **training_params)
+        training_model.fit(
+            train_generator.__iter__(),
+            steps_per_epoch=steps_per_epoch,
+            validation_data=val_generator.__iter__(),
+            validation_steps=val_steps,
+            **training_params
+        )
 
     def _get_inference_model(self):
         return self._create_inference_model()
@@ -236,6 +238,12 @@ class CtcModel(HTRModel):
         ypred = self._get_inference_model().predict(X)
         labels = decode_greedy(ypred, input_lengths)
         return labels
+
+    def ret_x(self, x):
+        return decode_greedy(self._get_inference_model().predict(x[0]), x[1])
+
+    def predict_multi(self, inputs, **kwargs):
+        return [self.ret_x(x) for x in tqdm(inputs, total=len(inputs))]
 
     def save(self, path, preprocessing_params):
         if not os.path.exists(path):
@@ -312,36 +320,25 @@ class BatchAdapter:
 class CTCAdapter(BatchAdapter):
     def compute_input_lengths(self, image_arrays):
         batch_size = len(image_arrays)
-        lstm_input_shapes = [compute_output_shape(
-            a.shape) for a in image_arrays]
+        lstm_input_shapes = [compute_output_shape(a.shape) for a in image_arrays]
         widths = [width for width, channels in lstm_input_shapes]
         return np.array(widths, dtype=np.int32).reshape(batch_size, 1)
 
-    def adapt_batch(self, batch):
-        image_arrays, labellings = batch
-
-        current_batch_size = len(labellings)
-
-        target_width = max([a.shape[1] for a in image_arrays])
-        padded_arrays = self._pad_image_arrays(image_arrays, target_width)
-
-        X = np.array(padded_arrays).reshape(
-            current_batch_size, *padded_arrays[0].shape)
-
-        target_length = max([len(labels) for labels in labellings])
-        padded_labellings = self._pad_labellings(labellings, target_length)
-
-        labels = np.array(padded_labellings, dtype=np.int32).reshape(
-            current_batch_size, -1
+    def single_x(self, x):
+        return self.adapt_x(
+            tf.keras.preprocessing.image.load_img(x, color_mode="grayscale")
         )
 
-        input_lengths = self.compute_input_lengths(image_arrays)
-
-        label_lengths = np.array(
-            [len(labelling) for labelling in labellings], dtype=np.int32
-        ).reshape(current_batch_size, 1)
-
-        return [X, labels, input_lengths, label_lengths], labels
+    def adapt_batch(self, batch):
+        # for i in tqdm(batch, total=len(batch)):
+        #     i = tf.keras.preprocessing.image.load_img(
+        #         i, color_mode="grayscale")
+        #     tmp = self.adapt_x(i)
+        #     image_arrays.append(tmp[0])
+        #     labellings.append(tmp[1])
+        pool = Pool(6)
+        images = pool.map(self.single_x, batch)
+        return images
 
     def adapt_x(self, image):
         a = tf.keras.preprocessing.image.img_to_array(image)
@@ -365,9 +362,9 @@ class DebugModelCallback(Callback):
 
     def on_epoch_begin(self, epoch, logs=None):
         if epoch % self._interval == 0 and epoch > 0:
-            print('Predictions on training inputs:')
+            print("Predictions on training inputs:")
             self.show_predictions(self._train_gen)
-            print('Predictions on validation inputs:')
+            print("Predictions on validation inputs:")
             self.show_predictions(self._val_gen)
 
     def show_predictions(self, gen):
@@ -378,10 +375,12 @@ class DebugModelCallback(Callback):
                 break
 
             image = tf.keras.preprocessing.image.load_img(
-                image_path, color_mode="grayscale")
+                image_path, color_mode="grayscale"
+            )
 
             expected_labels = [
-                [self._char_table.get_label(ch) for ch in ground_true_text]]
+                [self._char_table.get_label(ch) for ch in ground_true_text]
+            ]
 
             inputs = adapter.adapt_x(image)
 
@@ -390,8 +389,7 @@ class DebugModelCallback(Callback):
 
             predicted_text = codes_to_string(predictions[0], self._char_table)
 
-            print('LER {}, "{}" -> "{}"'.format(cer,
-                  ground_true_text, predicted_text))
+            print('LER {}, "{}" -> "{}"'.format(cer, ground_true_text, predicted_text))
 
 
 def fit_model(
@@ -423,8 +421,7 @@ def fit_model(
         val_path, char_table, batch_size, batch_adapter=adapter
     )
 
-    checkpoint = MyModelCheckpoint(
-        model, model_save_path, preprocessing_params)
+    checkpoint = MyModelCheckpoint(model, model_save_path, preprocessing_params)
 
     cer_generator = CompiledDataset(train_path)
     cer_val_generator = CompiledDataset(val_path)
@@ -439,15 +436,19 @@ def fit_model(
     train_debug_generator = CompiledDataset(train_path)
     val_debug_generator = CompiledDataset(val_path)
 
-    output_debugger = DebugModelCallback(char_table, train_debug_generator, val_debug_generator,
-                                         model, interval=debug_interval)
+    output_debugger = DebugModelCallback(
+        char_table,
+        train_debug_generator,
+        val_debug_generator,
+        model,
+        interval=debug_interval,
+    )
 
     callbacks = [checkpoint, CER_metric, output_debugger]
 
     compilation_params = dict(optimizer=tf.keras.optimizers.Adam(lr=lr))
     training_params = dict(epochs=epochs, callbacks=callbacks)
-    model.fit(train_generator, val_generator,
-              compilation_params, training_params)
+    model.fit(train_generator, val_generator, compilation_params, training_params)
 
 
 def fit_ctc_model(args):
