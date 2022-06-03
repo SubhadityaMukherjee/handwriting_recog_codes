@@ -41,6 +41,24 @@ def load_images_to_array(dss_path):
                 labels.append(root.split("/")[-1])
     return images, labels
 
+def load_images_to_array_png(dss_path):
+    """
+    Return images and labels as numpy arrays
+    """
+    images, labels = [], []
+    for root, dirs, files in tqdm(os.walk(dss_path)):
+        for file in files:
+            if file.endswith(".png"):
+                fname = os.path.join(root, file)
+                # print(fname)
+                im = np.array(Image.open(fname).convert("L").resize((28, 28), Image.Resampling.BILINEAR))
+                im = im[..., np.newaxis]
+                # print(im.shape)
+                images.append(im)
+                # get the last folder name as label
+                labels.append(root.split("/")[-1])
+    return images, labels
+
 
 def label_to_dict(labels):
     labelmap = {label: i for i, label in enumerate(np.unique(labels))}
