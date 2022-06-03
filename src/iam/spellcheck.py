@@ -1,8 +1,9 @@
+import concurrent.futures
+import difflib
 from glob import glob
 from operator import le
-from fuzzywuzzy import fuzz
+
 from tqdm import tqdm
-import concurrent.futures
 
 
 class SpellCheck:
@@ -10,7 +11,7 @@ class SpellCheck:
     def __init__(self, labels_path):
 
         self.labels_path = labels_path
-        self.dictionary = self.iam_to_word_dict()
+        self.wordlist = self.iam_to_word_dict()
 
     def iam_to_word_dict(self):
         labels = []
@@ -28,26 +29,12 @@ class SpellCheck:
                 else:
                     continue
         return labels
-    def correct(self, string_to_check):
-        # string_words = self.string_to_check.split()
-        string_words = string_to_check.split(" ")
-        l = len(string_words)
-        def parallel_check(i):
-            max_percent = 0
-            for name in self.dictionary:
-                percent = fuzz.ratio(string_words[i].lower(), name.lower())
-                if percent >= 75:
-                    if percent > max_percent:
-                        string_words[i] = name
-                    max_percent = percent
 
-        with tqdm(total=l) as pbar:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-                futures = {executor.submit(parallel_check, arg): arg for arg in [i for i in range(l)]}
-                results = {}
-                for future in concurrent.futures.as_completed(futures):
-                    arg = futures[future]
-                    results[arg] = future.result()
-                    pbar.update(1)
-        return " ".join(string_words)
-        
+    def correct(self, string_to_check):
+        string_words = string_to_check.split(" ")
+        return " ".join(
+            [
+                difflib.get_close_matches(x, possibilities=self.wordlist)[0]
+                for x in string_words
+            ]
+        )

@@ -6,7 +6,7 @@ ADD requirements.txt .
  
 # Install the requirements.txt
 RUN pip install -r requirements.txt
-RUN pip install pandas IPython
+RUN pip install pandas IPython python-Levenshtein
  
 # Some common environmenta variables that Python uses
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
