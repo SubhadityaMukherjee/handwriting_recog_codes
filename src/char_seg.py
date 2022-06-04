@@ -28,12 +28,12 @@ def checkMerge(box1, box2):
     # Following lines merge two bounding boxes, if box1 is inside box2.
     # A leeway is given, so box1 can be 70% of its width outside box2 (on the x axis)
     if ((box2[0] - box1[2] * 7 / 10) <= box1[0]) and (
-        (box2[0] + box2[2] + box1[2] * 7 / 10) >= (box1[0] + box1[2])
+            (box2[0] + box2[2] + box1[2] * 7 / 10) >= (box1[0] + box1[2])
     ):
         # Following if statement is for the y axis. On this axis, if at least one of the edges of the current
         # bounding box is inside the previous bounding box the boxes will be merged.
         if (box2[1] < (box1[1] + box1[3]) <= (box2[1] + box2[3])) or (
-            (box2[1] + box2[3]) > box1[1] >= box2[1]
+                (box2[1] + box2[3]) > box1[1] >= box2[1]
         ):
             box1 = mergeBoxes(box1, box2)
             return box1
@@ -44,22 +44,22 @@ def checkMerge(box1, box2):
 def splitConnectedElements(image, box):
     newBoxes = []
     focus = (
-        255 - image[(box[1]):(box[1] + box[3] + 2), (box[0]):(box[0] + box[2] + 2)]
+            255 - image[(box[1]):(box[1] + box[3] + 2), (box[0]):(box[0] + box[2] + 2)]
     )
     copy = focus.copy()
     focus[focus <= 127] = 1
     focus[focus > 127] = 0
     projection = np.sum(focus, axis=0)
-    if (((box[2]/box[3]) % 1) >= .35) and ((box[2]/box[3]) < 2):
-        ratio = int(box[2]/box[3]) + 1
-    elif ((box[2]/box[3]) % 1) >= .23:
+    if (((box[2] / box[3]) % 1) >= .35) and ((box[2] / box[3]) < 2):
+        ratio = int(box[2] / box[3]) + 1
+    elif ((box[2] / box[3]) % 1) >= .23:
         ratio = int(box[2] / box[3]) + 1
     else:
         ratio = int(box[2] / box[3])
-    #print(box[2]/box[3], ratio)
+    # print(box[2]/box[3], ratio)
     if ratio == 2:
         localMinimum = min(projection[(int(box[2] * 0.25)):(int(box[2] * 0.75))])
-        splitPoint = (int(box[2] * 0.25)) +\
+        splitPoint = (int(box[2] * 0.25)) + \
                      np.where(projection[(int(box[2] * 0.25)):(int(box[2] * 0.75))] == localMinimum)[0][0]
         if splitPoint >= 20:
             newBoxes.append((box[0], box[1], splitPoint + 3, box[3]))
@@ -141,7 +141,7 @@ def splitConnectedElements(image, box):
         newBoxes.reverse()
     else:
         newBoxes.append(box)
-    #print(projection, focus.shape, posMin)
+    # print(projection, focus.shape, posMin)
 
     """
     if not os.path.exists("lines/connected"):
@@ -157,10 +157,10 @@ def cleanBoxes(image, box, bbox):
         return
     # 1 character is somewhere between 25-40 pixels and 75 pixels in width
     # These characters are directly returned
-    elif (box[2] > 40) and (box[2]/box[3] < 1.2):
+    elif (box[2] > 40) and (box[2] / box[3] < 1.2):
         return box
     # Taking care of connected components
-    elif box[2]/box[3] >= 1.2:
+    elif box[2] / box[3] >= 1.2:
         box = splitConnectedElements(image, box)
         return box
     else:
@@ -169,7 +169,7 @@ def cleanBoxes(image, box, bbox):
             if hold:
                 bbox.pop()
                 bbox.append(hold)
-                #print(hold)
+                # print(hold)
 
         if len(bbox) >= 1:
             hold = checkMerge(box, bbox[-1])
@@ -203,7 +203,7 @@ def getBBox(image):
         if hierarchy[0][i][3] == -1:
             box = cv2.boundingRect(poly[i])
             box = cleanBoxes(image, box, bbox)
-            #print(type(box))
+            # print(type(box))
             if box and (type(box) is tuple):
                 ##print(box)
                 bbox.append(box)
@@ -230,7 +230,12 @@ def oneLineProcessing(img_str, line):
             int(bbox[i][2]),
             int(bbox[i][3]),
         )
+        focus = img[corner2:(corner2 + corner4), corner1:(corner1+corner3)].copy()
+        if focus.any():
+            cv2.imwrite("lines/" + str(img_str) + "/characters/" + str(corner1) + "--" + str(corner3) + "--" + str(
+                corner4) + ".png", focus)
         # print(corner1, corner2, corner3, corner4)
+        """
         color = list(np.random.random(size=3) * 256)
         cv2.rectangle(
             img,
@@ -239,13 +244,14 @@ def oneLineProcessing(img_str, line):
             color,
             shift=2,
             thickness=6,
-        )
+        )"""
 
     # cv2.imwrite("lines/x/3.jpg", img)
     # cv2.imwrite("lines/x/4.jpg", 255 - processed)
-    if not os.path.exists("lines/bbox"):
-        os.makedirs("lines/bbox")
-    cv2.imwrite("lines/bbox/" + str(img_str[:-4]) + "--" + str(line), img)
+    if not os.path.exists("lines/" + img_str + "/characters"):
+        os.makedirs("lines/" + img_str + "/characters")
+    #cv2.imwrite("lines/bbox/" + str(img_str[:-4]) + "--" + str(line), img)
+    # cv2.imwrite("lines/bbox/characters/" + str(img_str[:-4]) + "--" + str(line), img)
 
 
 def charSegmentation(imagesPath):
@@ -256,7 +262,7 @@ def charSegmentation(imagesPath):
             for line in imgPath:
                 if (str(img) == "x") or (str(img) == "connected"):
                     break
-                elif str(img) == "bbox":
+                elif str(img) == "bbox" or str(line) == "characters":
                     break
                 oneLineProcessing(img_str=img, line=line)
 
