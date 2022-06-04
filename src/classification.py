@@ -9,7 +9,6 @@ from multiprocessing import Pool, Process, current_process
 from pathlib import Path
 from types import SimpleNamespace
 from typing import *
-
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
@@ -26,8 +25,6 @@ from tensorflow.python.keras import backend as K
 
 from utils import *
 
-# import hiddenlayer as hl
-# import hiddenlayer.transforms as ht
 
 # Make model
 def make_model():
@@ -62,8 +59,8 @@ model.load_weights("trained_model.h5")
 # load monkbrill data
 # TODO: change to actual data lol
 
-main_path = Path("data/")
-dss_path = main_path / "testing"
+main_path = Path("lines/P22-Fg008-R-C01-R01-binarized.jpg")
+dss_path = main_path / "characters"
 # print(dss_path)
 batch_size = 200
 image_size = (28, 28, 1)
@@ -71,28 +68,12 @@ AUTOTUNE = tf.data.AUTOTUNE
 
 # Read data
 images, labels = load_images_to_array_no_label(dss_path)
-# labelmap, labels = label_to_dict(labels)
-# print(labelmap)
-# print(f"Total no of unique labels : {len(set(labels))}")
-# print(len(images))
-# print(images[:3], labels[:3])
-
-
-# Train test split
-# x_train, x_test, y_train, y_test = train_test_split(
-#     images, labels, test_size=0.0, random_state=1337)
-
-#np.array(y_train).shape
 
 #Convert to tf.data
 train_dataset = tf.data.Dataset.from_tensor_slices((images, labels))
-# test_dataset = tf.data.Dataset.from_tensor_slices((x_test, y_test))
-#test_data = tf.data.Dataset.from_tensor_slides(images)
 
 # # Prefetch data, shuffle, batch
 train_dataset = train_dataset.batch(batch_size)
-# test_dataset = test_dataset.batch(batch_size)
-
 
 model.compile(
     optimizer=tf.keras.optimizers.RMSprop(),
@@ -103,9 +84,7 @@ model.compile(
 # predict (either in batches or not? not sure)
 predictions = model.predict(train_dataset)
 
-# just print output for now
-# print(predictions)
-
+#%%
 # get key
 def get_key(val):
     for key, value in labelmap.items():
@@ -116,6 +95,7 @@ def get_key(val):
 
 classes = np.argmax(predictions, axis=1)
 
+# print prediction to file 
 with open("prediction.txt", "w") as f:
     for value in classes:
         f.write(get_key(value) + "\n")
