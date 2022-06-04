@@ -43,38 +43,64 @@ def checkMerge(box1, box2):
 def splitConnectedElements(image, box):
     focus = 255 - image[(box[1]):(box[1] + box[3] + 2), (box[0]):(box[0] + box[2] + 2)]
     copy = focus.copy()
-    """
-    kernelSize = 5
-    maxKernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernelSize, kernelSize))
-
-    morphErode = cv2.morphologyEx(focus, cv2.MORPH_ERODE, maxKernel)
-
-    bbox = getBBox(morphErode)
-
-    for i in range(len(bbox)):
-        corner1, corner2, corner3, corner4 = int(bbox[i][0]), int(bbox[i][1]), int(bbox[i][2]), int(bbox[i][3])
-        # print(corner1, corner2, corner3, corner4)
-        color = list(np.random.random(size=3) * 256)
-        cv2.rectangle(focus, (4 * corner1, 4 * corner2),
-                      (4 * (corner1 + corner3), 4 * (corner2 + corner4)),
-                      color, shift=2, thickness=6)"""
     focus[focus <= 127] = 1
     focus[focus > 127] = 0
     projection = np.sum(focus, axis=0)
-    if ((box[2]/box[3]) % 1) >= .35:
+    if (((box[2]/box[3]) % 1) >= .35) and ((box[2]/box[3]) < 2):
         ratio = int(box[2]/box[3]) + 1
+    elif ((box[2]/box[3]) % 1) >= .23:
+        ratio = int(box[2] / box[3]) + 1
     else:
         ratio = int(box[2] / box[3])
     #print(box[2]/box[3], ratio)
-    posMin = min(projection[(int(box[2] * 0.7)):(int(box[2] - box[2] * 0.15))])
-    check = 0
     if ratio == 2:
-        i = min(projection[(int(box[2] * 0.25)):(int(box[2] * 0.75))])
-        i = (int(box[2] * 0.25)) + np.where(projection[(int(box[2] * 0.25)):(int(box[2] * 0.75))] == i)[0][0]
-        cv2.line(copy, ((i - 2), 0), ((i - 2), focus.shape[0]),
+        localMinimum = min(projection[(int(box[2] * 0.25)):(int(box[2] * 0.75))])
+        splitPoint = (int(box[2] * 0.25)) +\
+                     np.where(projection[(int(box[2] * 0.25)):(int(box[2] * 0.75))] == localMinimum)[0][0]
+        cv2.line(copy, ((splitPoint - 2), 0), ((splitPoint - 2), focus.shape[0]),
                  color=(0, 255, 0),
                  thickness=6)
-    elif ratio > 2:
+    elif ratio == 3:
+        splitPoint = box[2]
+        step = int(box[2] / ratio)
+        for i in range(1, ratio):
+            lowerMargin = splitPoint - step - int(box[2] * 0.15)
+            if lowerMargin < 0:
+                lowerMargin = 4
+            upperMargin = splitPoint - step + int(box[2] * 0.15)
+            localMinimum = min(projection[lowerMargin:upperMargin])
+            splitPoint = lowerMargin + np.where(projection[lowerMargin:upperMargin] == localMinimum)[0][0]
+            cv2.line(copy, ((splitPoint - 2), 0), ((splitPoint - 2), focus.shape[0]),
+                     color=(0, 255, 0),
+                     thickness=6)
+    elif ratio == 4:
+        splitPoint = box[2]
+        step = int(box[2] / ratio)
+        for i in range(1, ratio):
+            lowerMargin = splitPoint - step - int(box[2] * 0.15)
+            if lowerMargin < 0:
+                lowerMargin = 4
+            upperMargin = splitPoint - step + int(box[2] * 0.15)
+            localMinimum = min(projection[lowerMargin:upperMargin])
+            splitPoint = lowerMargin + np.where(projection[lowerMargin:upperMargin] == localMinimum)[0][0]
+            cv2.line(copy, ((splitPoint - 2), 0), ((splitPoint - 2), focus.shape[0]),
+                     color=(0, 255, 0),
+                     thickness=6)
+    elif ratio == 5:
+        splitPoint = box[2]
+        step = int(box[2] / ratio)
+        for i in range(1, ratio):
+            lowerMargin = splitPoint - step - int(box[2] * 0.10)
+            if lowerMargin < 0:
+                lowerMargin = 4
+            upperMargin = splitPoint - step + int(box[2] * 0.10)
+            localMinimum = min(projection[lowerMargin:upperMargin])
+            splitPoint = lowerMargin + np.where(projection[lowerMargin:upperMargin] == localMinimum)[0][0]
+            cv2.line(copy, ((splitPoint - 2), 0), ((splitPoint - 2), focus.shape[0]),
+                     color=(0, 255, 0),
+                     thickness=6)
+        """
+        posMin = min(projection[(int(box[2] * 0.7)):(int(box[2] - box[2] * 0.15))])
         for i in range((len(projection) - 3), int(len(projection) * 0.15), -1):
             if (projection[i] <= posMin) and (check >= int(len(projection) * 0.20)):
                 cv2.line(copy, ((i - 2), 0), ((i - 2), focus.shape[0]),
@@ -84,7 +110,7 @@ def splitConnectedElements(image, box):
                     posMin = min(projection[(i - int(len(projection) * 0.15)):(i - 1)])
                     # print(posMin)
                     check = 0
-            check += 1
+            check += 1"""
     #print(projection, focus.shape, posMin)
 
 
