@@ -169,7 +169,7 @@ Preprocessing for images in DeadSea Scrolls
 def preprocess(image):
     grayscale = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    kernelSize = 3
+    kernelSize = 4
     maxKernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernelSize, kernelSize))
 
     morphErode = cv2.morphologyEx(grayscale, cv2.MORPH_ERODE, maxKernel)

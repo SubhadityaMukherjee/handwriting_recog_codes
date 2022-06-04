@@ -61,31 +61,43 @@ def splitConnectedElements(image, box):
     focus[focus <= 127] = 1
     focus[focus > 127] = 0
     projection = np.sum(focus, axis=0)
+    if ((box[2]/box[3]) % 1) >= .35:
+        ratio = int(box[2]/box[3]) + 1
+    else:
+        ratio = int(box[2] / box[3])
+    #print(box[2]/box[3], ratio)
     posMin = min(projection[(int(box[2] * 0.7)):(int(box[2] - box[2] * 0.15))])
     check = 0
-    for i in range((len(projection) - 3), int(len(projection) * 0.15), -1):
-        if (projection[i] <= posMin) and (check >= int(len(projection) * 0.20)):
-            cv2.line(copy, ((i - 2), 0), ((i - 2), focus.shape[0]),
-                     color=(0, 255, 0),
-                     thickness=6)
-            if projection[i - 1] != projection[i]:
-                posMin = min(projection[(i - int(len(projection) * 0.15)):(i - 1)])
-                print(posMin)
-                check = 0
-        check += 1
-    print(projection, focus.shape, posMin)
+    if ratio == 2:
+        i = min(projection[(int(box[2] * 0.25)):(int(box[2] * 0.75))])
+        i = (int(box[2] * 0.25)) + np.where(projection[(int(box[2] * 0.25)):(int(box[2] * 0.75))] == i)[0][0]
+        cv2.line(copy, ((i - 2), 0), ((i - 2), focus.shape[0]),
+                 color=(0, 255, 0),
+                 thickness=6)
+    elif ratio > 2:
+        for i in range((len(projection) - 3), int(len(projection) * 0.15), -1):
+            if (projection[i] <= posMin) and (check >= int(len(projection) * 0.20)):
+                cv2.line(copy, ((i - 2), 0), ((i - 2), focus.shape[0]),
+                         color=(0, 255, 0),
+                         thickness=6)
+                if projection[i - 1] != projection[i]:
+                    posMin = min(projection[(i - int(len(projection) * 0.15)):(i - 1)])
+                    # print(posMin)
+                    check = 0
+            check += 1
+    #print(projection, focus.shape, posMin)
 
 
     if not os.path.exists("lines/connected"):
         os.makedirs("lines/connected")
-    cv2.imwrite("lines/connected/" + str(box[0]) + "--" + str(box[2]) + ".png", copy)
+    cv2.imwrite("lines/connected/" + str(box[0]) + "--" + str(box[2])+ "--"+ str(box[3]) + ".png", copy)
     return
 
 
 def cleanBoxes(image, box, bbox):
     # Bounding box is saved only if it is 15 pixels or bigger
     # This eliminates small bounding boxes on noise
-    if (box[2] < 18) or (box[3] < 18):
+    if (box[2] < 20) or (box[3] < 20):
         return
     # 1 character is somewhere between 25-40 pixels and 75 pixels in width
     # These characters are directly returned
