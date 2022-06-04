@@ -166,8 +166,10 @@ def preprocess(image):
 
     morphOpen = cv2.morphologyEx(morphErode, cv2.MORPH_OPEN, maxKernel)
 
+    #binary = cv2.threshold(morphOpen, 127, 255, cv2.THRESH_BINARY)
 
-    return morphOpen
+
+    return morphErode
 
 
 class StoreAndProcess:

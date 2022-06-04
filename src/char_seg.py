@@ -20,7 +20,7 @@ def mergeBoxes(box1, box2):
     holder.append(p2)
     holder.append(p3)
     holder.append(p4)
-    print(box1, box2)
+    # print(box1, box2)
     holder = tuple(holder)
     return holder
 
@@ -40,18 +40,62 @@ def checkMerge(box1, box2):
         return
 
 
-def cleanBoxes(box, bbox):
+def splitConnectedElements(image, box):
+    focus = 255 - image[(box[1]):(box[1] + box[3] + 2), (box[0]):(box[0] + box[2] + 2)]
+    copy = focus.copy()
+    """
+    kernelSize = 5
+    maxKernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernelSize, kernelSize))
+
+    morphErode = cv2.morphologyEx(focus, cv2.MORPH_ERODE, maxKernel)
+
+    bbox = getBBox(morphErode)
+
+    for i in range(len(bbox)):
+        corner1, corner2, corner3, corner4 = int(bbox[i][0]), int(bbox[i][1]), int(bbox[i][2]), int(bbox[i][3])
+        # print(corner1, corner2, corner3, corner4)
+        color = list(np.random.random(size=3) * 256)
+        cv2.rectangle(focus, (4 * corner1, 4 * corner2),
+                      (4 * (corner1 + corner3), 4 * (corner2 + corner4)),
+                      color, shift=2, thickness=6)"""
+    focus[focus <= 127] = 1
+    focus[focus > 127] = 0
+    projection = np.sum(focus, axis=0)
+    posMin = min(projection[(int(box[2] * 0.7)):(int(box[2] - box[2] * 0.15))])
+    check = 0
+    for i in range((len(projection) - 3), int(len(projection) * 0.15), -1):
+        if (projection[i] <= posMin) and (check >= int(len(projection) * 0.20)):
+            cv2.line(copy, ((i - 2), 0), ((i - 2), focus.shape[0]),
+                     color=(0, 255, 0),
+                     thickness=6)
+            if projection[i - 1] != projection[i]:
+                posMin = min(projection[(i - int(len(projection) * 0.15)):(i - 1)])
+                print(posMin)
+                check = 0
+        check += 1
+    print(projection, focus.shape, posMin)
+
+
+    if not os.path.exists("lines/connected"):
+        os.makedirs("lines/connected")
+    cv2.imwrite("lines/connected/" + str(box[0]) + "--" + str(box[2]) + ".png", copy)
+    return
+
+
+def cleanBoxes(image, box, bbox):
     # Bounding box is saved only if it is 15 pixels or bigger
     # This eliminates small bounding boxes on noise
-    if (box[2] < 15) or (box[3] < 15):
+    if (box[2] < 18) or (box[3] < 18):
         return
     # 1 character is somewhere between 25-40 pixels and 75 pixels in width
     # These characters are directly returned
-    elif (box[2] > 45) and (box[2] < 75):
+    elif (box[2] > 40) and (box[2] < 95):
         return box
     # Taking care of connected components
     # TODO: find a way to split components
-    elif box[2] > 75:
+    elif box[2] > 94:
+        print(box)
+        splitConnectedElements(image, box)
         return box
     else:
         if len(bbox) >= 2:
@@ -59,19 +103,19 @@ def cleanBoxes(box, bbox):
             if hold:
                 bbox.pop()
                 bbox.append(hold)
-                print(hold)
+                # print(hold)
 
         if len(bbox) >= 1:
             hold = checkMerge(box, bbox[-1])
             if hold:
                 bbox.pop()
                 bbox.append(hold)
-                print(hold)
+                # print(hold)
             hold = checkMerge(bbox[-1], box)
             if hold:
                 bbox.pop()
                 bbox.append(hold)
-                print(hold)
+                # print(hold)
         # Following lines merge two bounding boxes, if the current bounding box is inside the previous registered
         # bounding box. A leeway is given, so the current bounding bounding box can be 70% of its width outside the
         # previous bounding box (on the x axis)
@@ -110,7 +154,7 @@ def getBBox(image):
 
         if hierarchy[0][i][3] == -1:
             box = cv2.boundingRect(poly[i])
-            box = cleanBoxes(box, bbox)
+            box = cleanBoxes(image, box, bbox)
             if box:
                 ##print(box)
                 bbox.append(box)
@@ -120,7 +164,7 @@ def getBBox(image):
 
 def oneLineProcessing(img_str, line):
     linePath = "lines/" + str(img_str) + "/" + str(line)
-    #print(linePath)
+    # print(linePath)
     img = cv2.imread(linePath)
     processed = preprocess(img)
 
@@ -129,14 +173,14 @@ def oneLineProcessing(img_str, line):
 
     for i in range(len(bbox)):
         corner1, corner2, corner3, corner4 = int(bbox[i][0]), int(bbox[i][1]), int(bbox[i][2]), int(bbox[i][3])
-        #print(corner1, corner2, corner3, corner4)
+        # print(corner1, corner2, corner3, corner4)
         color = list(np.random.random(size=3) * 256)
         cv2.rectangle(img, (4 * corner1, 4 * corner2),
                       (4 * (corner1 + corner3), 4 * (corner2 + corner4)),
                       color, shift=2, thickness=6)
 
-    #cv2.imwrite("lines/x/3.jpg", img)
-    #cv2.imwrite("lines/x/4.jpg", 255 - processed)
+    # cv2.imwrite("lines/x/3.jpg", img)
+    # cv2.imwrite("lines/x/4.jpg", 255 - processed)
     if not os.path.exists("lines/bbox"):
         os.makedirs("lines/bbox")
     cv2.imwrite("lines/bbox/" + str(img_str[:-4]) + "--" + str(line), img)
@@ -148,7 +192,7 @@ def charSegmentation(imagesPath):
         if img != ".DS_Store":
             imgPath = os.listdir("lines/" + str(img) + "/")
             for line in imgPath:
-                if str(img) == "x":
+                if (str(img) == "x") or (str(img) == "connected"):
                     break
                 elif str(img) == "bbox":
                     break
