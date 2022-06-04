@@ -24,6 +24,5 @@ new_data/
 loss.pdf
 /src/lines/
 temp_ds
-conv_lstm_model
 backup_model
 prediction.txt

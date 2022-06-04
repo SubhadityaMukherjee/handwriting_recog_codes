@@ -1,12 +1,8 @@
 # Our base image
 FROM tensorflow/tensorflow:2.2.3-gpu
  
-# Copy the requirements.txt file to our Docker image
-ADD requirements.txt .
- 
 # Install the requirements.txt
-RUN pip install -r requirements.txt
-RUN pip install pandas IPython python-Levenshtein
+RUN pip install pandas IPython python-Levenshtein albumentations scikit_learn scipy tensorflow_datasets tqdm networkx
  
 # Some common environmenta variables that Python uses
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8

@@ -18,7 +18,7 @@ from scipy import ndimage
 from tensorflow.keras.callbacks import Callback
 from tqdm import tqdm
 
-from spellcheck import SpellCheck
+from .spellcheck import SpellCheck
 
 
 class LEREvaluator:
@@ -156,6 +156,7 @@ def decode_greedy(inputs, input_lengths):
         dense = tf.sparse.to_dense(decoded[0])
         res = sess.run(dense)
         return res
+
 
 def compute_output_shape(input_shape):
     height, width, channels = input_shape

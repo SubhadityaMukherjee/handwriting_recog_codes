@@ -1,15 +1,23 @@
 # Steps to reproduce
-- docker run -i -t group3hwr/hwrproject:1.0.0 bash && cd hwr/
+## If docker is not preferred
+- pip install -r requirements.txt
+- The same instructions as for docker
+## For full docker image as well as complete reproducability
+- docker run -i -t group3hwr/hwrproject:1.0.0 bash
+  - If you want to run it on your own folder, you can use the following command:
+    - docker run -i -t group3hwr/hwrproject:1.0.0 -v yourfolder:/hwr/newdata/ bash
+- cd hwr
+
 ## Task 3 : IAM
 - While you are still in the container, you can run the following commands to reproduce the results.
-- cd /hwr/src/iam
 ### Testing
 - For a folder of images. (Can just be run directly). The results will be saved in the folder results/iam_predictions as requested
-  - python3 test.py --folder somefolder/
+  - python3 iamrunner.py --folder somefolder/
+  - python3 iamrunner.py --folder yourfolder/
 - For a single image. (Can just be run directly)
-  - python3 test.py --imagepath someimage.jpg
-- To run the evaluation on the validation or test set, you need to first have run the preprocessing step (1) that saves the dataset to the `temp_ds/` directory.
-  - python3 test.py --evaluate
+  - python3 iamrunner.py --imagepath someimage.jpg
+- To run the evaluation on the validation or test set, you need to first have run the preprocessing step (1) that saves the dataset to the `temp_ds/` directory. (If not using docker)
+  - python3 iamrunner.py --evaluate
 
 ### Training if required
 - To generate the train/test/val data -(1)

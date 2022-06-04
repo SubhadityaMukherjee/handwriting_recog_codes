@@ -7,9 +7,9 @@ from pathlib import Path
 import numpy as np
 import tensorflow as tf
 
-from datautils import *
-from models import *
-from utilsiam import *
+from .datautils import *
+from .models import *
+from .utilsiam import *
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 logging.getLogger("tensorflow").setLevel(logging.CRITICAL)
