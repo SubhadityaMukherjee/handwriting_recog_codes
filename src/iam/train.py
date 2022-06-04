@@ -1,23 +1,11 @@
 import argparse
-import json
 import logging
-import math
 import os
-import random
-import subprocess
 from importlib import import_module
 from pathlib import Path
-from xml.etree import ElementTree as ET
-from xml.etree.ElementTree import ParseError
 
-import networkx as nx
 import numpy as np
-import scipy
 import tensorflow as tf
-from PIL import Image, ImageDraw, ImageFont, ImageOps
-from scipy import ndimage
-from tensorflow.keras.callbacks import Callback
-from tqdm import tqdm
 
 from datautils import *
 from models import *
