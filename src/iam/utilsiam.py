@@ -18,7 +18,7 @@ from scipy import ndimage
 from tensorflow.keras.callbacks import Callback
 from tqdm import tqdm
 
-from spellcheck import SpellCheck
+from .spellcheck import SpellCheck
 
 
 class LEREvaluator:
@@ -153,18 +153,6 @@ def decode_greedy(inputs, input_lengths):
         inputs = tf.transpose(inputs, [1, 0, 2])
         decoded, _ = tf.nn.ctc_greedy_decoder(inputs, input_lengths.flatten())
 
-        dense = tf.sparse.to_dense(decoded[0])
-        res = sess.run(dense)
-        return res
-
-
-def beam_search_decode(inputs, input_lengths):
-    with tf.compat.v1.Session() as sess:
-        inputs = tf.transpose(inputs, [1, 0, 2])
-        decoded, log_probs = tf.nn.ctc_beam_search_decoder(
-            inputs, input_lengths.flatten(), beam_width=10
-        )
-        # print(log_probs)
         dense = tf.sparse.to_dense(decoded[0])
         res = sess.run(dense)
         return res

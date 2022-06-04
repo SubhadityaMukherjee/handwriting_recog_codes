@@ -1,7 +1,4 @@
-import concurrent.futures
 import difflib
-from glob import glob
-from operator import le
 
 from tqdm import tqdm
 
@@ -32,9 +29,11 @@ class SpellCheck:
 
     def correct(self, string_to_check):
         string_words = string_to_check.split(" ")
-        return " ".join(
-            [
-                difflib.get_close_matches(x, possibilities=self.wordlist)[0]
-                for x in string_words
-            ]
-        )
+        res = []
+        for x in string_words:
+            try:
+                res.append(difflib.get_close_matches(x, possibilities=self.wordlist)[0])
+            except:
+                res.append(x)
+        return " ".join(res)
+            

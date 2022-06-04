@@ -9,7 +9,7 @@
 - For a single image. (Can just be run directly)
   - python3 test.py --imagepath someimage.jpg
 - To run the evaluation on the validation or test set, you need to first have run the preprocessing step (1) that saves the dataset to the `temp_ds/` directory.
-  - python3 test.py --dataset temp_ds/test 
+  - python3 test.py --evaluate
 
 ### Training if required
 - To generate the train/test/val data -(1)

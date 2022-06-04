@@ -1,22 +1,24 @@
 import concurrent
 import os
 import time
-from functools import partial
 import urllib
 from concurrent.futures import ProcessPoolExecutor
+from functools import partial
+from glob import glob
 from pathlib import Path
 from types import SimpleNamespace
 from typing import *
-from tqdm import tqdm
+
 import cv2
+import matplotlib.pyplot as plt
+import numpy as np
+import tensorflow as tf
 from PIL import Image
 from tensorflow import keras
-import tensorflow as tf
-from glob import glob
-import matplotlib.pyplot as plt
+from tqdm import tqdm
+
 # from IPython.display import Image
 
-import numpy as np
 
 """
 This module contains all the general add ons
@@ -33,13 +35,18 @@ def load_images_to_array(dss_path):
             if file.endswith(".pgm"):
                 fname = os.path.join(root, file)
                 # print(fname)
-                im = np.array(Image.open(fname).convert("L").resize((28, 28), Image.Resampling.BILINEAR))
+                im = np.array(
+                    Image.open(fname)
+                    .convert("L")
+                    .resize((28, 28), Image.Resampling.BILINEAR)
+                )
                 im = im[..., np.newaxis]
                 # print(im.shape)
                 images.append(im)
                 # get the last folder name as label
                 labels.append(root.split("/")[-1])
     return images, labels
+
 
 def load_images_to_array_png(dss_path):
     """
@@ -51,7 +58,11 @@ def load_images_to_array_png(dss_path):
             if file.endswith(".png"):
                 fname = os.path.join(root, file)
                 # print(fname)
-                im = np.array(Image.open(fname).convert("L").resize((28, 28), Image.Resampling.BILINEAR))
+                im = np.array(
+                    Image.open(fname)
+                    .convert("L")
+                    .resize((28, 28), Image.Resampling.BILINEAR)
+                )
                 im = im[..., np.newaxis]
                 # print(im.shape)
                 images.append(im)
@@ -187,7 +198,7 @@ Preprocessing for images in DeadSea Scrolls
 def preprocess(image):
     grayscale = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    kernelSize = 3
+    kernelSize = 4
     maxKernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernelSize, kernelSize))
 
     morphErode = cv2.morphologyEx(grayscale, cv2.MORPH_ERODE, maxKernel)
@@ -202,8 +213,9 @@ def preprocess(image):
 
     morphOpen = cv2.morphologyEx(morphErode, cv2.MORPH_OPEN, maxKernel)
 
+    # binary = cv2.threshold(morphOpen, 127, 255, cv2.THRESH_BINARY)
 
-    return morphOpen
+    return morphErode
 
 
 class StoreAndProcess:
@@ -228,8 +240,9 @@ class StoreAndProcess:
         return image
 
     def vectorize_label(self, label):
-        label = self.params["char_to_num"](tf.strings.unicode_split(
-            label, input_encoding="UTF-8"))
+        label = self.params["char_to_num"](
+            tf.strings.unicode_split(label, input_encoding="UTF-8")
+        )
 
         # print(label)
         length = tf.shape(label)[0]
@@ -239,13 +252,18 @@ class StoreAndProcess:
         # else:
         #     pad_amount = 0
         # pad_amount = 200
-        label = tf.pad(label, paddings=[[0, pad_amount]],
-                       constant_values=self.params["padding_token"])
+        label = tf.pad(
+            label,
+            paddings=[[0, pad_amount]],
+            constant_values=self.params["padding_token"],
+        )
         return label
 
     def prepare_dataset(self, image_paths, labels):
         labels = list(map(lambda x: self.vectorize_label(" ".join(x)), labels))
-        image_paths = list(map(lambda x: self.load_and_preprocess_image_iam(x), image_paths))
+        image_paths = list(
+            map(lambda x: self.load_and_preprocess_image_iam(x), image_paths)
+        )
         dict_k = {"image": image_paths, "label": labels}
 
         dataset = tf.data.Dataset.from_tensor_slices(dict_k)
@@ -276,11 +294,12 @@ class StoreAndProcess:
                 # Gather indices where label!= padding_token.
                 label = labels[i]
                 print(label)
-                indices = tf.gather(label, tf.where(
-                    tf.math.not_equal(label, self.params["padding_token"])))
+                indices = tf.gather(
+                    label,
+                    tf.where(tf.math.not_equal(label, self.params["padding_token"])),
+                )
                 # Convert to string.
-                label = tf.strings.reduce_join(
-                    self.params["num_to_char"](indices))
+                label = tf.strings.reduce_join(self.params["num_to_char"](indices))
                 label = label.numpy().decode("utf-8")
 
                 ax[i // 4, i % 4].imshow(img, cmap="gray")

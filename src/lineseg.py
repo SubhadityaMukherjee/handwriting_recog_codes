@@ -1,16 +1,19 @@
-import cv2
-from multiprocessing import Pool
-import numpy as np
-from pathlib import Path
-from utils import *
 import os
 import sys
+from multiprocessing import Pool
 from pathlib import Path
+
+import cv2
+import numpy as np
 from scipy.signal import find_peaks
 
+from utils import *
+
+
 def importImagePaths(main_path):  # Return the paths to the images
-    list_of_binarized_paths = [str(main_path/x)
-                               for x in os.listdir(main_path) if "binarized" in x]
+    list_of_binarized_paths = [
+        str(main_path / x) for x in os.listdir(main_path) if "binarized" in x
+    ]
     return list_of_binarized_paths
 
 
@@ -18,12 +21,13 @@ def importImagePaths(main_path):  # Return the paths to the images
 def blackWhiteDilate(imagePath):
     rawImage = cv2.imread(imagePath)
 
-    kernel = np.ones((2, 2), np.uint8)
+    kernel = np.ones((1, 1), np.uint8)
     # Even though we use erosion, the effect is more similar to dilation as the image is not inverted
     dilatedImage = cv2.erode(rawImage, kernel, iterations=1)
 
-    (_, processedImage) = cv2.threshold(cv2.cvtColor(
-        dilatedImage, cv2.COLOR_BGR2GRAY), 127, 255, cv2.THRESH_BINARY)
+    (_, processedImage) = cv2.threshold(
+        cv2.cvtColor(dilatedImage, cv2.COLOR_BGR2GRAY), 127, 255, cv2.THRESH_BINARY
+    )
 
     return processedImage
 
@@ -31,10 +35,10 @@ def blackWhiteDilate(imagePath):
 # Detects if the picture is slanted.
 def isSlanted(image, threshold=0.125):
     hpp = np.sum(image, axis=1)
-    normedHpp = (hpp / hpp.mean())
+    normedHpp = hpp / hpp.mean()
     _, peaksInfo = find_peaks(normedHpp, height=0)
 
-    if(np.std(peaksInfo["peak_heights"]) < threshold):  # high: normal, low: slanted
+    if np.std(peaksInfo["peak_heights"]) < threshold:  # high: normal, low: slanted
         return True
     else:
         return False
@@ -58,7 +62,9 @@ def rotate_bound_white(image, angle):
     M[1, 2] += (nH / 2) - cY
 
     # perform the actual rotation and return the image
-    return cv2.warpAffine(image, M, (nW, nH), borderMode=cv2.BORDER_CONSTANT, borderValue=(255, 255, 255))
+    return cv2.warpAffine(
+        image, M, (nW, nH), borderMode=cv2.BORDER_CONSTANT, borderValue=(255, 255, 255)
+    )
 
 
 # Given an image, it tries to remove slanting by rotating it.
@@ -69,22 +75,24 @@ def fixRotation(image):
     for angle in range(-10, 10):
         tempImage = rotate_bound_white(image, angle)
         hpp = np.sum(tempImage, axis=1)
-        normedHpp = (hpp / hpp.mean())
+        normedHpp = hpp / hpp.mean()
         _, peaksInfo = find_peaks(normedHpp, height=0)
         stdOfTemp = np.std(peaksInfo["peak_heights"])
-        if(stdOfTemp > stdOfBest):
+        if stdOfTemp > stdOfBest:
             bestImage = tempImage
             stdOfBest = stdOfTemp
     return bestImage
 
 
 # Keep only main text/ delete most white space around the text
-def cropImage(image, threshold=2, all=True, top=False, bottom=False, left=False, right=False):
+def cropImage(
+    image, threshold=5, all=True, top=False, bottom=False, left=False, right=False
+):
 
     # Additional boolean arguments are used for croping only specific sides (and requites "all=False").
     rowTopBoundary = rowBotBoundary = colLeftBoundary = colRightBoundary = 0
 
-    if(all or top):
+    if all or top:
         height, width = np.shape(image)
         for rowIndex in range(height):  # Remove top white space
             if np.count_nonzero(image[rowIndex] == 0) < threshold:
@@ -93,16 +101,16 @@ def cropImage(image, threshold=2, all=True, top=False, bottom=False, left=False,
                 break
         image = np.delete(image, slice(0, rowTopBoundary), 0)
 
-    if(all or bottom):
+    if all or bottom:
         height, width = np.shape(image)
         for rowIndex in range(height):  # Remove bottom white space
-            if np.count_nonzero(image[height-rowIndex - 1] == 0) < threshold:
+            if np.count_nonzero(image[height - rowIndex - 1] == 0) < threshold:
                 rowBotBoundary = rowIndex
             else:
                 break
-        image = np.delete(image, slice(height-rowBotBoundary, height), 0)
+        image = np.delete(image, slice(height - rowBotBoundary, height), 0)
 
-    if(all or left):
+    if all or left:
         height, width = np.shape(image)
         for colIndex in range(width):  # Remove left white space
             if np.count_nonzero(image[:, colIndex] == 0) < threshold:
@@ -111,14 +119,14 @@ def cropImage(image, threshold=2, all=True, top=False, bottom=False, left=False,
                 break
         image = np.delete(image, slice(0, colLeftBoundary), 1)
 
-    if(all or right):
+    if all or right:
         height, width = np.shape(image)
         for colIndex in range(width):  # Remove right white space
-            if np.count_nonzero(image[:, width-colIndex - 1] == 0) < threshold:
+            if np.count_nonzero(image[:, width - colIndex - 1] == 0) < threshold:
                 colRightBoundary = colIndex
             else:
                 break
-        image = np.delete(image, slice(width-colRightBoundary, width), 1)
+        image = np.delete(image, slice(width - colRightBoundary, width), 1)
 
     return image
 
@@ -133,20 +141,28 @@ def makeImageFolder(folderName):
 
 # Returns an array with the stripes and the blocks in each stripe.
 # tshPLow and tshPHigh determine the threshold for low and high density images respectively
-def createStripesAndBlocks(image, numOfStripes=2, tshPLow=3, tshPHigh=2.5, maxNumOfBlocks=40, maxRowsPerBlock=2000):
+# A higher threshold leads to more lines.
+def createStripesAndBlocks(
+    image,
+    numOfStripes=1,
+    tshPLow=3,
+    tshPHigh=4.5,
+    maxNumOfBlocks=40,
+    maxRowsPerBlock=2000,
+):
     """
     numOfStripes : The number of vertical stripes the image is cut into
     pxlThreshold : The number of black pixels that a row of pixels within a stripe needs to contain to be considered a text line
-    maxNumOfBlocks  : The maximum number of blocks of text per stripe (e.g. 30 blocks if you expect up to 30 lines of text, before under/oversegmentation is dealt with)
-    maxRowsPerBlock  : The maximum number of pixels that each text line might require.
+    maxNumOfBlocks : The maximum number of blocks of text per stripe (e.g. 30 blocks if you expect up to 30 lines of text, before under/oversegmentation is dealt with)
+    maxRowsPerBlock : The maximum number of pixels that each text line might require.
     """
     height, width = np.shape(image)
     # Determine if picture is high or low density
-    # TODO: use different thresholds here
-    density = np.count_nonzero(image == 0)/np.count_nonzero(image == 255)
-
+    density = np.count_nonzero(image == 0) / np.count_nonzero(image == 255)
     threshold = 0
-    if(density >= 0.15):  # 0.15 experimentally found
+    if (
+        density >= 0.12
+    ):  # 0.12 experimentally found for dilation (1, 1). For dilation (2, 2) use 0.15
         # depending on resolution and density, use different threshold
         threshold = width / (tshPHigh * 10)
     else:
@@ -158,15 +174,18 @@ def createStripesAndBlocks(image, numOfStripes=2, tshPLow=3, tshPHigh=2.5, maxNu
     # used later to see if the padding should be at the top or bottom of the stripe (so that alignment with other stripes is correct). 0 for bottom padding, 1 for top padding
     padLocations = []
     for i in range(numOfStripes):  # Cut into stripes
-        stripesArr[i] = image[:, (i*stripeWidth):(i+1)*stripeWidth]
+        stripesArr[i] = image[:, (i * stripeWidth) : (i + 1) * stripeWidth]
         sliceSize = len(stripesArr[i]) // 20  # Take the bottom/top 5%
-        if np.count_nonzero(stripesArr[i][0:sliceSize, 0:len(stripesArr[i][0]-1)] == 0) > np.count_nonzero(stripesArr[i][len(stripesArr[i]) - sliceSize:, :] == 0):
+        if np.count_nonzero(
+            stripesArr[i][0:sliceSize, 0 : len(stripesArr[i][0] - 1)] == 0
+        ) > np.count_nonzero(stripesArr[i][len(stripesArr[i]) - sliceSize :, :] == 0):
             padLocations.append(0)  # Bot padding
         else:
             padLocations.append(1)  # Top padding
     # 4D array that will hold all blocks, set white background
-    allBlocks = np.full((numOfStripes, maxNumOfBlocks,
-                        maxRowsPerBlock, stripeWidth), 255)
+    allBlocks = np.full(
+        (numOfStripes, maxNumOfBlocks, maxRowsPerBlock, stripeWidth), 255
+    )
 
     # Cut Stripe into blocks:
     for stripe in range(numOfStripes):
@@ -175,8 +194,9 @@ def createStripesAndBlocks(image, numOfStripes=2, tshPLow=3, tshPHigh=2.5, maxNu
         for row_index, row in enumerate(stripesArr[stripe]):
             # If this line has >10 black pixels, it is a line of text
             if np.count_nonzero(stripesArr[stripe, row_index] == 0) > threshold:
-                allBlocks[stripe, currentBlock,
-                          currentRowInBlock] = stripesArr[stripe, row_index]
+                allBlocks[stripe, currentBlock, currentRowInBlock] = stripesArr[
+                    stripe, row_index
+                ]
                 currentRowInBlock += 1
             else:  # Create a new block, but only if the current block is an empty block.
                 if not np.all(allBlocks[stripe, currentBlock] == 255):
@@ -193,9 +213,9 @@ def overUnderSegmentation(stripesAndBlocks):
         blocksOfStripe = []
         averageBlockHeight = 0
         for block in stripe:
-            cleanBlock = cropImage(block, 2, False, False, True)
+            cleanBlock = cropImage(block, 5, False, False, True)
             # More than 20 black pixels to be considered a text line block.
-            if np.count_nonzero(cleanBlock == 0) > 20:
+            if np.count_nonzero(cleanBlock == 0) > 50:
                 blocksOfStripe.append(cleanBlock)
 
         averageBlockHeight = 0
@@ -208,12 +228,16 @@ def overUnderSegmentation(stripesAndBlocks):
         while blockIndex < (len(blocksOfStripe)):
             if len(blocksOfStripe[blockIndex]) <= 0.5 * averageBlockHeight:
                 # if it's the last block, combine it with the previous one.
-                if(blockIndex + 1 >= len(blocksOfStripe)):
+                if blockIndex + 1 >= len(blocksOfStripe):
                     blocksOfStripe[blockIndex - 1] = np.concatenate(
-                        (blocksOfStripe[blockIndex-1], blocksOfStripe[blockIndex]), axis=0)
+                        (blocksOfStripe[blockIndex - 1], blocksOfStripe[blockIndex]),
+                        axis=0,
+                    )
                 else:  # otherwise, combine it with the next block.
                     blocksOfStripe[blockIndex + 1] = np.concatenate(
-                        (blocksOfStripe[blockIndex], blocksOfStripe[blockIndex+1]), axis=0)
+                        (blocksOfStripe[blockIndex], blocksOfStripe[blockIndex + 1]),
+                        axis=0,
+                    )
                 del blocksOfStripe[blockIndex]
                 blockIndex -= 1
             blockIndex += 1
@@ -228,7 +252,7 @@ def overUnderSegmentation(stripesAndBlocks):
         # Assumption: Up to two lines are segmented together.
         blockIndex = 0
         while blockIndex < (len(blocksOfStripe)):
-            if len(blocksOfStripe[blockIndex]) >= 1.65 * averageBlockHeight:
+            if len(blocksOfStripe[blockIndex]) >= 1.5 * averageBlockHeight:
                 middle = len(blocksOfStripe[blockIndex]) // 2
                 firstHalf = blocksOfStripe[blockIndex][:middle]
                 secondHalf = blocksOfStripe[blockIndex][middle:]
@@ -255,21 +279,26 @@ def standardiseBlocks(stripesAndBlocks, padLocations):
                 maxNumberOfRowsPerBlock = len(block)
 
     standardisedBlocks = np.full(
-        (len(stripesAndBlocks), maxNumberOfBlocks, maxNumberOfRowsPerBlock, blockWidth), 255)
+        (len(stripesAndBlocks), maxNumberOfBlocks, maxNumberOfRowsPerBlock, blockWidth),
+        255,
+    )
     for stripeIndex in range(len(stripesAndBlocks)):
         # difference between height of the stripes
-        heightDifference = len(
-            standardisedBlocks[0])-len(stripesAndBlocks[stripeIndex])
+        heightDifference = len(standardisedBlocks[0]) - len(
+            stripesAndBlocks[stripeIndex]
+        )
         if padLocations[stripeIndex] == 0:  # pad bottom
             for blockIndex, block in enumerate(stripesAndBlocks[stripeIndex]):
                 blockHeight = stripesAndBlocks[stripeIndex][blockIndex].shape[0]
-                standardisedBlocks[stripeIndex][blockIndex][0:blockHeight,
-                                                            0:blockWidth] = block
+                standardisedBlocks[stripeIndex][blockIndex][
+                    0:blockHeight, 0:blockWidth
+                ] = block
         else:  # pad top
             for blockIndex, block in enumerate(stripesAndBlocks[stripeIndex]):
                 blockHeight = stripesAndBlocks[stripeIndex][blockIndex].shape[0]
-                standardisedBlocks[stripeIndex][blockIndex + heightDifference][0:blockHeight,
-                                                                               0:blockWidth] = block
+                standardisedBlocks[stripeIndex][blockIndex + heightDifference][
+                    0:blockHeight, 0:blockWidth
+                ] = block
 
     return standardisedBlocks
 
@@ -282,9 +311,10 @@ def concatBlocksAndExport(stripesAndBlocks, exportPath):
         concatenatedBlock = stripesAndBlocks[0, textLine]
         for stripe in range(numOfStripes - 1):
             concatenatedBlock = np.concatenate(
-                (concatenatedBlock, stripesAndBlocks[stripe + 1, textLine]), axis=1)
+                (concatenatedBlock, stripesAndBlocks[stripe + 1, textLine]), axis=1
+            )
 
-        linePath = 'lines/' + exportPath
+        linePath = "lines/" + exportPath
         nameOfOutput = str(textLine) + ".png"
         cv2.imwrite(os.path.join(linePath, nameOfOutput), concatenatedBlock)
 
@@ -310,7 +340,8 @@ def contourSegmentation(image, folderPath):
 
     # find contours
     ctrs, _ = cv2.findContours(
-        img_dilation.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        img_dilation.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+    )
 
     # sort contours
     sorted_ctrs = sorted(ctrs, key=lambda ctr: cv2.boundingRect(ctr)[0])
@@ -320,8 +351,8 @@ def contourSegmentation(image, folderPath):
         x, y, w, h = cv2.boundingRect(ctr)
 
         # Getting ROI
-        roi = image[y:y+h, x:x+w]
-        linePath = 'lines/' + folderPath
+        roi = image[y : y + h, x : x + w]
+        linePath = "lines/" + folderPath
         nameOfOutput = str(i) + ".png"
         if len(roi[0]) > 500:  # Don't save very small contours
             cv2.imwrite(os.path.join(linePath, nameOfOutput), roi)
@@ -334,8 +365,11 @@ if __name__ == "__main__":
         os.makedirs("lines/")
 
     for imageIndex, imagePath in enumerate(imagePaths):
-        print("Line Segmentation Progress: " +
-              str(int(imageIndex*100/len(imagePaths))) + "%")
+        print(
+            "Line Segmentation Progress: "
+            + str(int(imageIndex * 100 / len(imagePaths)))
+            + "%"
+        )
         # Folders will be created inside the general Lines folder
         folderPath = makeImageFolder(str(imagePath))
         # Make the picture black and white and crop it so that only the text is present.
@@ -345,6 +379,6 @@ if __name__ == "__main__":
         elif int(sys.argv[1]) == 1:
             contourSegmentation(image, folderPath)
         else:
-            sys.exit("Argument " + "'" + str(sys.argv[1])+"' not recognised")
+            sys.exit("Argument " + "'" + str(sys.argv[1]) + "' not recognised")
 
     print("Line Segmentation Complete!")

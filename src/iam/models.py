@@ -5,22 +5,16 @@ import os
 import random
 from multiprocessing import Pool
 from pathlib import Path
-from tabnanny import verbose
-from xml.etree import ElementTree as ET
-from xml.etree.ElementTree import ParseError
 
-import networkx as nx
 import numpy as np
 import scipy
 import tensorboard
 import tensorflow as tf
-from PIL import Image, ImageDraw, ImageFont, ImageOps
-from scipy import ndimage
 from tensorflow.keras.callbacks import Callback
 from tqdm import tqdm
 
-from datautils import *
-from utilsiam import *
+from .datautils import *
+from .utilsiam import *
 
 
 class HTRModel:
@@ -338,6 +332,8 @@ class CTCAdapter(BatchAdapter):
         #     labellings.append(tmp[1])
         pool = Pool(6)
         images = pool.map(self.single_x, batch)
+        pool.close()
+        pool.join()
         return images
 
     def adapt_x(self, image):
