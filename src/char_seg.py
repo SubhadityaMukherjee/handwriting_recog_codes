@@ -1,13 +1,12 @@
 import os
 import sys
+from pathlib import Path
 
 import cv2
 import numpy as np
-
 from tqdm import tqdm
 
 from utils import *
-from pathlib import Path
 
 
 def mergeBoxes(box1, box2):
@@ -28,12 +27,14 @@ def mergeBoxes(box1, box2):
 def checkMerge(box1, box2):
     # Following lines merge two bounding boxes, if box1 is inside box2.
     # A leeway is given, so box1 can be 70% of its width outside box2 (on the x axis)
-    if ((box2[0] - box1[2] * 7 / 10) <= box1[0]) and \
-            ((box2[0] + box2[2] + box1[2] * 7 / 10) >= (box1[0] + box1[2])):
+    if ((box2[0] - box1[2] * 7 / 10) <= box1[0]) and (
+        (box2[0] + box2[2] + box1[2] * 7 / 10) >= (box1[0] + box1[2])
+    ):
         # Following if statement is for the y axis. On this axis, if at least one of the edges of the current
         # bounding box is inside the previous bounding box the boxes will be merged.
-        if (box2[1] < (box1[1] + box1[3]) <= (box2[1] + box2[3])) or \
-                ((box2[1] + box2[3]) > box1[1] >= box2[1]):
+        if (box2[1] < (box1[1] + box1[3]) <= (box2[1] + box2[3])) or (
+            (box2[1] + box2[3]) > box1[1] >= box2[1]
+        ):
             box1 = mergeBoxes(box1, box2)
             return box1
     else:
@@ -41,7 +42,9 @@ def checkMerge(box1, box2):
 
 
 def splitConnectedElements(image, box):
-    focus = 255 - image[(box[1]):(box[1] + box[3] + 2), (box[0]):(box[0] + box[2] + 2)]
+    focus = (
+        255 - image[(box[1]) : (box[1] + box[3] + 2), (box[0]) : (box[0] + box[2] + 2)]
+    )
     copy = focus.copy()
     focus[focus <= 127] = 1
     focus[focus > 127] = 0
@@ -210,12 +213,22 @@ def oneLineProcessing(img_str, line):
     bbox = getBBox(255 - processed)
 
     for i in range(len(bbox)):
-        corner1, corner2, corner3, corner4 = int(bbox[i][0]), int(bbox[i][1]), int(bbox[i][2]), int(bbox[i][3])
+        corner1, corner2, corner3, corner4 = (
+            int(bbox[i][0]),
+            int(bbox[i][1]),
+            int(bbox[i][2]),
+            int(bbox[i][3]),
+        )
         # print(corner1, corner2, corner3, corner4)
         color = list(np.random.random(size=3) * 256)
-        cv2.rectangle(img, (4 * corner1, 4 * corner2),
-                      (4 * (corner1 + corner3), 4 * (corner2 + corner4)),
-                      color, shift=2, thickness=6)
+        cv2.rectangle(
+            img,
+            (4 * corner1, 4 * corner2),
+            (4 * (corner1 + corner3), 4 * (corner2 + corner4)),
+            color,
+            shift=2,
+            thickness=6,
+        )
 
     # cv2.imwrite("lines/x/3.jpg", img)
     # cv2.imwrite("lines/x/4.jpg", 255 - processed)

@@ -13,8 +13,8 @@ import tensorflow as tf
 from tensorflow.keras.callbacks import Callback
 from tqdm import tqdm
 
-from datautils import *
-from utilsiam import *
+from .datautils import *
+from .utilsiam import *
 
 
 class HTRModel:

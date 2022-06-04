@@ -1,0 +1,1 @@
+{"model_class_name": "CtcModel", "params": {"units": 250, "num_labels": 53, "height": 126, "channels": 1}, "preprocessing": {"average_height": 126}}
