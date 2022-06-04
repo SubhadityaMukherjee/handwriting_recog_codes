@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from scipy.signal import find_peaks
 
+
 def importImagePaths(main_path):  # Return the paths to the images
     list_of_binarized_paths = [str(main_path/x)
                                for x in os.listdir(main_path) if "binarized" in x]
@@ -18,7 +19,7 @@ def importImagePaths(main_path):  # Return the paths to the images
 def blackWhiteDilate(imagePath):
     rawImage = cv2.imread(imagePath)
 
-    kernel = np.ones((2, 2), np.uint8)
+    kernel = np.ones((1, 1), np.uint8)
     # Even though we use erosion, the effect is more similar to dilation as the image is not inverted
     dilatedImage = cv2.erode(rawImage, kernel, iterations=1)
 
@@ -79,7 +80,7 @@ def fixRotation(image):
 
 
 # Keep only main text/ delete most white space around the text
-def cropImage(image, threshold=2, all=True, top=False, bottom=False, left=False, right=False):
+def cropImage(image, threshold=5, all=True, top=False, bottom=False, left=False, right=False):
 
     # Additional boolean arguments are used for croping only specific sides (and requites "all=False").
     rowTopBoundary = rowBotBoundary = colLeftBoundary = colRightBoundary = 0
@@ -133,20 +134,19 @@ def makeImageFolder(folderName):
 
 # Returns an array with the stripes and the blocks in each stripe.
 # tshPLow and tshPHigh determine the threshold for low and high density images respectively
-def createStripesAndBlocks(image, numOfStripes=2, tshPLow=3, tshPHigh=2.5, maxNumOfBlocks=40, maxRowsPerBlock=2000):
+# A higher threshold leads to more lines. 
+def createStripesAndBlocks(image, numOfStripes=1, tshPLow=3, tshPHigh=4.5, maxNumOfBlocks=40, maxRowsPerBlock=2000):
     """
     numOfStripes : The number of vertical stripes the image is cut into
     pxlThreshold : The number of black pixels that a row of pixels within a stripe needs to contain to be considered a text line
-    maxNumOfBlocks  : The maximum number of blocks of text per stripe (e.g. 30 blocks if you expect up to 30 lines of text, before under/oversegmentation is dealt with)
-    maxRowsPerBlock  : The maximum number of pixels that each text line might require.
+    maxNumOfBlocks : The maximum number of blocks of text per stripe (e.g. 30 blocks if you expect up to 30 lines of text, before under/oversegmentation is dealt with)
+    maxRowsPerBlock : The maximum number of pixels that each text line might require.
     """
     height, width = np.shape(image)
     # Determine if picture is high or low density
-    # TODO: use different thresholds here
     density = np.count_nonzero(image == 0)/np.count_nonzero(image == 255)
-
     threshold = 0
-    if(density >= 0.15):  # 0.15 experimentally found
+    if(density >= 0.12):  # 0.12 experimentally found for dilation (1, 1). For dilation (2, 2) use 0.15
         # depending on resolution and density, use different threshold
         threshold = width / (tshPHigh * 10)
     else:
@@ -193,9 +193,9 @@ def overUnderSegmentation(stripesAndBlocks):
         blocksOfStripe = []
         averageBlockHeight = 0
         for block in stripe:
-            cleanBlock = cropImage(block, 2, False, False, True)
+            cleanBlock = cropImage(block, 5, False, False, True)
             # More than 20 black pixels to be considered a text line block.
-            if np.count_nonzero(cleanBlock == 0) > 20:
+            if np.count_nonzero(cleanBlock == 0) > 50:
                 blocksOfStripe.append(cleanBlock)
 
         averageBlockHeight = 0
@@ -228,7 +228,7 @@ def overUnderSegmentation(stripesAndBlocks):
         # Assumption: Up to two lines are segmented together.
         blockIndex = 0
         while blockIndex < (len(blocksOfStripe)):
-            if len(blocksOfStripe[blockIndex]) >= 1.65 * averageBlockHeight:
+            if len(blocksOfStripe[blockIndex]) >= 1.5 * averageBlockHeight:
                 middle = len(blocksOfStripe[blockIndex]) // 2
                 firstHalf = blocksOfStripe[blockIndex][:middle]
                 secondHalf = blocksOfStripe[blockIndex][middle:]

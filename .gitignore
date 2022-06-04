@@ -26,3 +26,4 @@ loss.pdf
 temp_ds
 conv_lstm_model
 backup_model
+prediction.txt
