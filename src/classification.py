@@ -58,6 +58,7 @@ def make_model():
     return model
 
 
+labelmap = {'Alef': 0, 'Ayin': 1, 'Bet': 2, 'Dalet': 3, 'Gimel': 4, 'He': 5, 'Het': 6, 'Kaf': 7, 'Kaf-final': 8, 'Lamed': 9, 'Mem': 10, 'Mem-medial': 11, 'Nun-final': 12, 'Nun-medial': 13, 'Pe': 14, 'Pe-final': 15, 'Qof': 16, 'Resh': 17, 'Samekh': 18, 'Shin': 19, 'Taw': 20, 'Tet': 21, 'Tsadi-final': 22, 'Tsadi-medial': 23, 'Waw': 24, 'Yod': 25, 'Zayin': 26}
 
 # load model 
 model = make_model()
@@ -68,36 +69,36 @@ model.load_weights('trained_model.h5')
 #TODO: change to actual data lol 
 
 main_path = Path("data/")
-dss_path = main_path / "monkbrill"
+dss_path = main_path / "testing"
 # print(dss_path)
 batch_size = 200
 image_size = (28, 28, 1)
 AUTOTUNE = tf.data.AUTOTUNE
 
 # Read data
-images, labels = load_images_to_array(dss_path)
-# print(images[0].shape)
-labelmap, labels = label_to_dict(labels)
-print(f"Total no of unique labels : {len(set(labels))}")
-print(len(images))
+images, labels = load_images_to_array_no_label(dss_path)
+# labelmap, labels = label_to_dict(labels)
+# print(labelmap)
+# print(f"Total no of unique labels : {len(set(labels))}")
+# print(len(images))
 # print(images[:3], labels[:3])
 
 
 # Train test split
-x_train, x_test, y_train, y_test = train_test_split(
-    images, labels, test_size=0.2, random_state=1337)
-print(len(x_train), len(y_train))
-print(len(x_test), len(y_test))
+# x_train, x_test, y_train, y_test = train_test_split(
+#     images, labels, test_size=0.0, random_state=1337)
 
-np.array(y_train).shape
+#np.array(y_train).shape
 
-# Convert to tf.data
-train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
-test_dataset = tf.data.Dataset.from_tensor_slices((x_test, y_test))
+#Convert to tf.data
+train_dataset = tf.data.Dataset.from_tensor_slices((images, labels))
+# test_dataset = tf.data.Dataset.from_tensor_slices((x_test, y_test))
+#test_data = tf.data.Dataset.from_tensor_slides(images)
 
-# Prefetch data, shuffle, batch
-train_dataset = train_dataset.shuffle(100).batch(batch_size)
-test_dataset = test_dataset.batch(batch_size)
+# # Prefetch data, shuffle, batch
+train_dataset = train_dataset.batch(batch_size)
+# test_dataset = test_dataset.batch(batch_size)
+
 
 model.compile(optimizer=tf.keras.optimizers.RMSprop(),
               loss=tf.keras.losses.SparseCategoricalCrossentropy(),
@@ -106,7 +107,7 @@ model.compile(optimizer=tf.keras.optimizers.RMSprop(),
 ])
 
 # predict (either in batches or not? not sure)
-predictions = model.predict(test_dataset)
+predictions = model.predict(train_dataset)
 
 # just print output for now 
 #print(predictions)
