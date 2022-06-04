@@ -216,6 +216,8 @@ def getBBox(image):
 
 def oneLineProcessing(img_str, line):
     linePath = "lines/" + str(img_str) + "/" + str(line)
+    if not os.path.exists("lines/" + img_str + "/characters/line" + str(line[:-4])):
+        os.makedirs("lines/" + img_str + "/characters/line" + str(line[:-4]))
     # print(linePath)
     img = cv2.imread(linePath)
     processed = preprocess(img)
@@ -232,8 +234,8 @@ def oneLineProcessing(img_str, line):
         )
         focus = img[corner2:(corner2 + corner4), corner1:(corner1+corner3)].copy()
         if focus.any():
-            cv2.imwrite("lines/" + str(img_str) + "/characters/" + str(corner1) + "--" + str(corner3) + "--" + str(
-                corner4) + ".png", focus)
+            cv2.imwrite("lines/" + str(img_str) + "/characters/line"+ str(line[:-4]) + "/" + str(i) + ".png", focus)
+            #str(corner1) + "--" + str(corner3) + "--" + str(corner4) + ".png", focus)
         # print(corner1, corner2, corner3, corner4)
         """
         color = list(np.random.random(size=3) * 256)
@@ -248,8 +250,6 @@ def oneLineProcessing(img_str, line):
 
     # cv2.imwrite("lines/x/3.jpg", img)
     # cv2.imwrite("lines/x/4.jpg", 255 - processed)
-    if not os.path.exists("lines/" + img_str + "/characters"):
-        os.makedirs("lines/" + img_str + "/characters")
     #cv2.imwrite("lines/bbox/" + str(img_str[:-4]) + "--" + str(line), img)
     # cv2.imwrite("lines/bbox/characters/" + str(img_str[:-4]) + "--" + str(line), img)
 
