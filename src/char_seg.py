@@ -42,8 +42,9 @@ def checkMerge(box1, box2):
 
 
 def splitConnectedElements(image, box):
+    newBoxes = []
     focus = (
-        255 - image[(box[1]) : (box[1] + box[3] + 2), (box[0]) : (box[0] + box[2] + 2)]
+        255 - image[(box[1]):(box[1] + box[3] + 2), (box[0]):(box[0] + box[2] + 2)]
     )
     copy = focus.copy()
     focus[focus <= 127] = 1
@@ -60,9 +61,14 @@ def splitConnectedElements(image, box):
         localMinimum = min(projection[(int(box[2] * 0.25)):(int(box[2] * 0.75))])
         splitPoint = (int(box[2] * 0.25)) +\
                      np.where(projection[(int(box[2] * 0.25)):(int(box[2] * 0.75))] == localMinimum)[0][0]
+        if splitPoint >= 20:
+            newBoxes.append((box[0], box[1], splitPoint + 3, box[3]))
+        if (box[2] - splitPoint) >= 20:
+            newBoxes.append((box[0] + splitPoint - 3, box[1], box[2] - splitPoint, box[3]))
+        """
         cv2.line(copy, ((splitPoint - 2), 0), ((splitPoint - 2), focus.shape[0]),
                  color=(0, 255, 0),
-                 thickness=6)
+                 thickness=6)"""
     elif ratio == 3:
         splitPoint = box[2]
         step = int(box[2] / ratio)
@@ -72,10 +78,20 @@ def splitConnectedElements(image, box):
                 lowerMargin = 4
             upperMargin = splitPoint - step + int(box[2] * 0.15)
             localMinimum = min(projection[lowerMargin:upperMargin])
+            prevSplit = splitPoint
             splitPoint = lowerMargin + np.where(projection[lowerMargin:upperMargin] == localMinimum)[0][0]
+            if prevSplit - splitPoint >= 20:
+                if prevSplit == box[2]:
+                    newBoxes.append((box[0] + splitPoint - 3, box[1], prevSplit - splitPoint, box[3]))
+                else:
+                    newBoxes.append((box[0] + splitPoint - 3, box[1], prevSplit - splitPoint + 3, box[3]))
+
             cv2.line(copy, ((splitPoint - 2), 0), ((splitPoint - 2), focus.shape[0]),
                      color=(0, 255, 0),
                      thickness=6)
+        if splitPoint >= 20:
+            newBoxes.append((box[0], box[1], splitPoint + 3, box[3]))
+        newBoxes.reverse()
     elif ratio == 4:
         splitPoint = box[2]
         step = int(box[2] / ratio)
@@ -85,10 +101,20 @@ def splitConnectedElements(image, box):
                 lowerMargin = 4
             upperMargin = splitPoint - step + int(box[2] * 0.15)
             localMinimum = min(projection[lowerMargin:upperMargin])
+            prevSplit = splitPoint
             splitPoint = lowerMargin + np.where(projection[lowerMargin:upperMargin] == localMinimum)[0][0]
+            if prevSplit - splitPoint >= 20:
+                if prevSplit == box[2]:
+                    newBoxes.append((box[0] + splitPoint - 3, box[1], prevSplit - splitPoint, box[3]))
+                else:
+                    newBoxes.append((box[0] + splitPoint - 3, box[1], prevSplit - splitPoint + 3, box[3]))
+
             cv2.line(copy, ((splitPoint - 2), 0), ((splitPoint - 2), focus.shape[0]),
                      color=(0, 255, 0),
                      thickness=6)
+        if splitPoint >= 20:
+            newBoxes.append((box[0], box[1], splitPoint + 3, box[3]))
+        newBoxes.reverse()
     elif ratio == 5:
         splitPoint = box[2]
         step = int(box[2] / ratio)
@@ -98,29 +124,30 @@ def splitConnectedElements(image, box):
                 lowerMargin = 4
             upperMargin = splitPoint - step + int(box[2] * 0.10)
             localMinimum = min(projection[lowerMargin:upperMargin])
+
+            prevSplit = splitPoint
             splitPoint = lowerMargin + np.where(projection[lowerMargin:upperMargin] == localMinimum)[0][0]
+            if prevSplit - splitPoint >= 20:
+                if prevSplit == box[2]:
+                    newBoxes.append((box[0] + splitPoint - 3, box[1], prevSplit - splitPoint, box[3]))
+                else:
+                    newBoxes.append((box[0] + splitPoint - 3, box[1], prevSplit - splitPoint + 3, box[3]))
+
             cv2.line(copy, ((splitPoint - 2), 0), ((splitPoint - 2), focus.shape[0]),
                      color=(0, 255, 0),
                      thickness=6)
-        """
-        posMin = min(projection[(int(box[2] * 0.7)):(int(box[2] - box[2] * 0.15))])
-        for i in range((len(projection) - 3), int(len(projection) * 0.15), -1):
-            if (projection[i] <= posMin) and (check >= int(len(projection) * 0.20)):
-                cv2.line(copy, ((i - 2), 0), ((i - 2), focus.shape[0]),
-                         color=(0, 255, 0),
-                         thickness=6)
-                if projection[i - 1] != projection[i]:
-                    posMin = min(projection[(i - int(len(projection) * 0.15)):(i - 1)])
-                    # print(posMin)
-                    check = 0
-            check += 1"""
+        if splitPoint >= 20:
+            newBoxes.append((box[0], box[1], splitPoint + 3, box[3]))
+        newBoxes.reverse()
+    else:
+        newBoxes.append(box)
     #print(projection, focus.shape, posMin)
 
-
+    """
     if not os.path.exists("lines/connected"):
         os.makedirs("lines/connected")
-    cv2.imwrite("lines/connected/" + str(box[0]) + "--" + str(box[2])+ "--"+ str(box[3]) + ".png", copy)
-    return
+    cv2.imwrite("lines/connected/" + str(box[0]) + "--" + str(box[2])+ "--"+ str(box[3]) + ".png", copy)"""
+    return newBoxes
 
 
 def cleanBoxes(image, box, bbox):
@@ -135,8 +162,7 @@ def cleanBoxes(image, box, bbox):
     # Taking care of connected components
     # TODO: find a way to split components
     elif box[2] > 94:
-        print(box)
-        splitConnectedElements(image, box)
+        box = splitConnectedElements(image, box)
         return box
     else:
         if len(bbox) >= 2:
@@ -144,7 +170,7 @@ def cleanBoxes(image, box, bbox):
             if hold:
                 bbox.pop()
                 bbox.append(hold)
-                # print(hold)
+                #print(hold)
 
         if len(bbox) >= 1:
             hold = checkMerge(box, bbox[-1])
@@ -196,9 +222,13 @@ def getBBox(image):
         if hierarchy[0][i][3] == -1:
             box = cv2.boundingRect(poly[i])
             box = cleanBoxes(image, box, bbox)
-            if box:
+            #print(type(box))
+            if box and (type(box) is tuple):
                 ##print(box)
                 bbox.append(box)
+            elif type(box) is list:
+                for item in box:
+                    bbox.append(item)
 
     return bbox
 
