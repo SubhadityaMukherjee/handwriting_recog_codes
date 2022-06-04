@@ -13,7 +13,7 @@ from PIL import Image
 from tensorflow.keras.callbacks import Callback
 from tqdm import tqdm
 
-from .utilsiam import *
+from utilsiam import *
 
 
 def create_lines_dataset(

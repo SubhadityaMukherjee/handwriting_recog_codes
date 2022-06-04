@@ -18,17 +18,13 @@ from scipy import ndimage
 from tensorflow.keras.callbacks import Callback
 from tqdm import tqdm
 
-from .spellcheck import SpellCheck
-
 
 class LEREvaluator:
-    def __init__(self, model, gen, steps, char_table, spellche=None):
+    def __init__(self, model, gen, steps, char_table):
         self._model = model
         self._gen = gen
         self._steps = steps or 10
         self._char_table = char_table
-        if spellche is not None:
-            self._spellche = SpellCheck("../../data/IAM-data/iam_lines_gt.txt")
 
     def evaluate(self):
         scores = []
@@ -38,19 +34,18 @@ class LEREvaluator:
             if i > self._steps:
                 break
 
-            image, ground_true_text = example
+            image_path, ground_true_text = example
+            image = tf.keras.preprocessing.image.load_img(
+                image_path, color_mode="grayscale"
+            )
 
             expected_labels = [
-                [self._char_table.get_character(ch) for ch in ground_true_text[0]]
+                [self._char_table.get_label(ch) for ch in ground_true_text]
             ]
             inputs = adapter.adapt_x(image)
 
-            predictions = self._model.predict(inputs).to_list()
-            if self._spellche is not None:
-                predictions = self._spellche.correct(predictions)
-            cer = compute_cer(
-                expected_labels,
-            )[0]
+            predictions = self._model.predict(inputs)
+            cer = compute_cer(expected_labels, predictions.tolist())[0]
             scores.append(cer)
 
         return np.array(scores).mean()
@@ -153,6 +148,18 @@ def decode_greedy(inputs, input_lengths):
         inputs = tf.transpose(inputs, [1, 0, 2])
         decoded, _ = tf.nn.ctc_greedy_decoder(inputs, input_lengths.flatten())
 
+        dense = tf.sparse.to_dense(decoded[0])
+        res = sess.run(dense)
+        return res
+
+
+def beam_search_decode(inputs, input_lengths):
+    with tf.compat.v1.Session() as sess:
+        inputs = tf.transpose(inputs, [1, 0, 2])
+        decoded, log_probs = tf.nn.ctc_beam_search_decoder(
+            inputs, input_lengths.flatten(), beam_width=10
+        )
+        # print(log_probs)
         dense = tf.sparse.to_dense(decoded[0])
         res = sess.run(dense)
         return res

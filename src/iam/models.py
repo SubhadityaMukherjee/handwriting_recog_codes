@@ -3,18 +3,25 @@ import logging
 import math
 import os
 import random
-from multiprocessing import Pool
+import subprocess
+from importlib import import_module
 from pathlib import Path
+from tabnanny import verbose
+from xml.etree import ElementTree as ET
+from xml.etree.ElementTree import ParseError
 
+import networkx as nx
 import numpy as np
 import scipy
 import tensorboard
 import tensorflow as tf
+from PIL import Image, ImageDraw, ImageFont, ImageOps
+from scipy import ndimage
 from tensorflow.keras.callbacks import Callback
 from tqdm import tqdm
 
-from .datautils import *
-from .utilsiam import *
+from datautils import *
+from utilsiam import *
 
 
 class HTRModel:
@@ -227,17 +234,12 @@ class CtcModel(HTRModel):
     def get_adapter(self):
         return CTCAdapter()
 
+    # @tf.function
     def predict(self, inputs, **kwargs):
         X, input_lengths = inputs
         ypred = self._get_inference_model().predict(X)
         labels = decode_greedy(ypred, input_lengths)
         return labels
-
-    def ret_x(self, x):
-        return decode_greedy(self._get_inference_model().predict(x[0]), x[1])
-
-    def predict_multi(self, inputs, **kwargs):
-        return [self.ret_x(x) for x in tqdm(inputs, total=len(inputs))]
 
     def save(self, path, preprocessing_params):
         if not os.path.exists(path):
@@ -318,23 +320,30 @@ class CTCAdapter(BatchAdapter):
         widths = [width for width, channels in lstm_input_shapes]
         return np.array(widths, dtype=np.int32).reshape(batch_size, 1)
 
-    def single_x(self, x):
-        return self.adapt_x(
-            tf.keras.preprocessing.image.load_img(x, color_mode="grayscale")
+    def adapt_batch(self, batch):
+        image_arrays, labellings = batch
+
+        current_batch_size = len(labellings)
+
+        target_width = max([a.shape[1] for a in image_arrays])
+        padded_arrays = self._pad_image_arrays(image_arrays, target_width)
+
+        X = np.array(padded_arrays).reshape(current_batch_size, *padded_arrays[0].shape)
+
+        target_length = max([len(labels) for labels in labellings])
+        padded_labellings = self._pad_labellings(labellings, target_length)
+
+        labels = np.array(padded_labellings, dtype=np.int32).reshape(
+            current_batch_size, -1
         )
 
-    def adapt_batch(self, batch):
-        # for i in tqdm(batch, total=len(batch)):
-        #     i = tf.keras.preprocessing.image.load_img(
-        #         i, color_mode="grayscale")
-        #     tmp = self.adapt_x(i)
-        #     image_arrays.append(tmp[0])
-        #     labellings.append(tmp[1])
-        pool = Pool(6)
-        images = pool.map(self.single_x, batch)
-        pool.close()
-        pool.join()
-        return images
+        input_lengths = self.compute_input_lengths(image_arrays)
+
+        label_lengths = np.array(
+            [len(labelling) for labelling in labellings], dtype=np.int32
+        ).reshape(current_batch_size, 1)
+
+        return [X, labels, input_lengths, label_lengths], labels
 
     def adapt_x(self, image):
         a = tf.keras.preprocessing.image.img_to_array(image)

@@ -33,7 +33,7 @@ class SpellCheck:
         for x in string_words:
             try:
                 res.append(difflib.get_close_matches(x, possibilities=self.wordlist)[0])
-            except:
+            except Exception as e:
+                print(e)
                 res.append(x)
         return " ".join(res)
-            
