@@ -1,7 +1,6 @@
-import concurrent.futures
 import math
 import os
-import pathlib
+from pathlib import Path
 from glob import glob
 
 import matplotlib.pyplot as plt
@@ -16,7 +15,7 @@ from utilsiam import *
 
 # from keras.utils.vis_utils import plot_model
 
-
+#TODO Fix all file paths to relative
 def gridder(images, labels, col=2):
     """
     Gets a list of images and labels and displays them in a grid
@@ -128,14 +127,17 @@ if __name__ == "__main__":
         files = os.listdir(folder)
         files = [os.path.join(folder, f) for f in files if f.endswith(".png")]
         files.sort()
+        # files = files[:21]
 
         with open("temp_ds/test/lines.txt") as f:
             lines = f.readlines()
+        # lines = lines[:21]
         sp = SpellCheck("../../data/IAM-data/iam_lines_gt.txt")
         res = multiple_prediction(files, model, char_table, adapter)
-        sp_res = [sp.correct(x) for x in res]
+        sp_res = [sp.correct(x) for x in tqdm(res, total=len(res))]
         print("CER without spellcheck: {}".format(float(compute_cer(lines, res)[0])))
         print("CER with spellcheck: {}".format(float(compute_cer(lines, sp_res)[0])))
+        gridder(files[:20], sp_res[:20])
 
     if args.folder is not None:
         folder = args.folder
