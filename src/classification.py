@@ -89,6 +89,8 @@ def load_images_char_class(linespath):
     """
     # ims, labels = [], []
     for root in tqdm(os.listdir(linespath)):
+        if root == '.DS_Store':  #Ignore the .DS_Store file that Mac systems have
+            continue
         lines = os.listdir(os.path.join(linespath, root, "characters"))
         extracted = []
         for line in lines:
