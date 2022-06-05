@@ -190,8 +190,12 @@ def getBBox(image):
 
 def oneLineProcessing(img_str, line):
     linePath = "lines/" + str(img_str) + "/" + str(line)
-    if not os.path.exists("lines/" + img_str + "/characters/line" + str(line[:-4])):
-        os.makedirs("lines/" + img_str + "/characters/line" + str(line[:-4]))
+    if int(line[:-4]) <= 9:
+        if not os.path.exists("lines/" + img_str + "/characters/line0" + str(line[:-4])):
+            os.makedirs("lines/" + img_str + "/characters/line0" + str(line[:-4]))
+    else:
+        if not os.path.exists("lines/" + img_str + "/characters/line" + str(line[:-4])):
+            os.makedirs("lines/" + img_str + "/characters/line" + str(line[:-4]))
     # print(linePath)
     img = cv2.imread(linePath)
     processed = preprocess(img)
@@ -209,7 +213,7 @@ def oneLineProcessing(img_str, line):
         focus = img[corner2:(corner2 + corner4), corner1:(corner1+corner3)].copy()
         if focus.any():
             if int(line[:-4]) <= 9:
-                cv2.imwrite("lines/" + str(img_str) + "/characters/line0"+ str(line[:-4]) + "/" + str(i) + ".png", focus)
+                cv2.imwrite("lines/" + str(img_str) + "/characters/line0" + str(line[:-4]) + "/" + str(i) + ".png", focus)
             else:
                 cv2.imwrite("lines/" + str(img_str) + "/characters/line" + str(line[:-4]) + "/" + str(i) + ".png",
                             focus)
