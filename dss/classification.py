@@ -99,39 +99,42 @@ def load_images_char_class(linespath):
     for root in tqdm(sorted(os.listdir(linespath))):
         if root == '.DS_Store':  #Ignore the .DS_Store file that Mac systems have
             continue
-        lines = sorted(os.listdir(os.path.join(linespath, root, "characters")))
-        extracted = []
-        for line in lines:
-            images = []
-            labels = []
-            for char in sorted(os.listdir(os.path.join(linespath, root, "characters", line))):
-                char = os.path.join(linespath, root, "characters", line, char)
-                im = np.array(Image.open(char).convert("L").resize(
-                    (28, 28), Image.Resampling.BILINEAR))
-                im = im[..., np.newaxis]
-                im = im / 255.0
-                images.append(im)
-                labels.append(char +" ")
+        try:
+            lines = sorted(os.listdir(os.path.join(linespath, root, "characters")))
+            extracted = []
+            for line in lines:
+                images = []
+                labels = []
+                for char in sorted(os.listdir(os.path.join(linespath, root, "characters", line))):
+                    char = os.path.join(linespath, root, "characters", line, char)
+                    im = np.array(Image.open(char).convert("L").resize(
+                        (28, 28), Image.Resampling.BILINEAR))
+                    im = im[..., np.newaxis]
+                    im = im / 255.0
+                    images.append(im)
+                    labels.append(char +" ")
 
-            train_dataset = tf.data.Dataset.from_tensor_slices(
-                (images, labels))
+                train_dataset = tf.data.Dataset.from_tensor_slices(
+                    (images, labels))
 
-            train_dataset = train_dataset.batch(1)
+                train_dataset = train_dataset.batch(1)
 
-            # predict (either in batches or not? not sure)
-            try:
-                predictions = model.predict(train_dataset)
-                classes = np.argmax(predictions, axis=1)
-                classes = [get_hebrew(x) for x in classes]
-                classes = reversed(classes)
-                extracted.append(" ".join(classes))
+                # predict (either in batches or not? not sure)
+                try:
+                    predictions = model.predict(train_dataset)
+                    classes = np.argmax(predictions, axis=1)
+                    classes = [get_hebrew(x) for x in classes]
+                    classes = reversed(classes)
+                    extracted.append(" ".join(classes))
 
-            except:
-                print("Error predicting")
-                continue
-        
-        with open(os.path.join("results/", str(os.path.splitext(root)[0]) + "_characters.txt"), "w") as f:
-            f.write("\n".join(extracted))
+                except:
+                    print("Error predicting")
+                    continue
+            
+            with open(os.path.join("results/", str(os.path.splitext(root)[0]) + "_characters.txt"), "w") as f:
+                f.write("\n".join(extracted))
+        except FileNotFoundError:
+            pass
 
 
 main_path = Path("lines")
