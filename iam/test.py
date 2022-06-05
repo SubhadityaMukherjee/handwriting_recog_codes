@@ -119,19 +119,48 @@ if __name__ == "__main__":
         files = [f for f in files if f.endswith(".png")]
         l = len(files)
         sp = SpellCheck("iam_lines_gt.txt")
+        preprocessor = model.get_preprocessor()
+        shutil.rmtree("results/iam/iam_predictions")
+        os.makedirs("results/iam/iam_predictions")
 
         def process_file(file):
             image_path = os.path.join(folder, file)
-            predicted_text = single_prediction(image_path, model, char_table, adapter)
-            predicted_text = sp.correct(predicted_text)
+            #predicted_text = single_prediction(image_path, model, char_table, adapter)
+            if "temp_ds" in image_path:
+                image = tf.keras.preprocessing.image.load_img(
+                    image_path, color_mode="grayscale"
+                )
+
+            else:
+                image = preprocessor.process(image_path)
+
+            inputs = adapter.adapt_x(image)
+            labels = model.predict(inputs)[0]
+
+            res = codes_to_string(labels, char_table)
+
+            predicted_text = sp.correct(res)
+
             with open(
-                f"results/iam/iam_predictions/{file.split('.')[0]}.txt", "w+"
+                f"results/iam/iam_predictions/{file}.txt", "w+"
             ) as fle:
                 fle.write(predicted_text)
             return predicted_text
 
         results = {fns: process_file(fns) for fns in tqdm(files)}
-        print(results)
+
+        # def process_file(file):
+        #     image_path = os.path.join(folder, file)
+        #     predicted_text = single_prediction(image_path, model, char_table, adapter)
+        #     predicted_text = sp.correct(predicted_text)
+        #     with open(
+        #         f"results/iam/iam_predictions/{file.split('.')[0]}.txt", "w+"
+        #     ) as fle:
+        #         fle.write(predicted_text)
+        #     return predicted_text
+
+        # results = {fns: process_file(fns) for fns in tqdm(files)}
+        # print(results)
     else:
         """
         Evaluate the model on a single image
