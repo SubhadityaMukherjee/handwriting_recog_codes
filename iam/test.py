@@ -89,7 +89,7 @@ if __name__ == "__main__":
         with open("temp_ds/test/lines.txt") as f:
             lines = f.readlines()
 
-        sp = SpellCheck(Path("../data/IAM-data/iam_lines_gt.txt"))
+        sp = SpellCheck(Path("iam_lines_gt.txt"))
         res = [
             single_prediction(image_path, model, char_table, adapter)
             for image_path in tqdm(files)
@@ -118,7 +118,7 @@ if __name__ == "__main__":
         files = os.listdir(folder)
         files = [f for f in files if f.endswith(".png")]
         l = len(files)
-        sp = SpellCheck("../data/IAM-data/iam_lines_gt.txt")
+        sp = SpellCheck("iam_lines_gt.txt")
 
         def process_file(file):
             image_path = os.path.join(folder, file)
