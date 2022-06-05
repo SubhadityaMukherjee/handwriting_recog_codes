@@ -17,30 +17,19 @@ import tensorflow_datasets as tfds
 from PIL import Image, ImageDraw, ImageFont
 from sklearn.model_selection import train_test_split
 from tensorflow import keras
-# from tensorflow.keras.models import Model, Sequential
-from tensorflow.keras import Model, applications, layers
-from tensorflow.keras.layers import (Activation, Dense, Dropout, Flatten,
-                                     GlobalAveragePooling2D)
-from tensorflow.keras.utils import plot_model
 from tensorflow.python.keras import backend as K
 
 from utils import *
-# font = ImageFont.truetype(
-#     "Habbakuk.TTF", 42
-# )  
+
 
 # Make model
 def make_model():
     model = tf.keras.Sequential(
         [
-            # convolutional layer with rectified linear unit activation
-            # kernel size used to be 3, 3
             tf.keras.layers.Conv2D(
                 32, kernel_size=(5, 5), activation="relu", input_shape=(28, 28, 1)
             ),
-            # tf.keras.layers.BatchNormalization(), #check this at home
             tf.keras.layers.Conv2D(64, (3, 3), activation="relu"),
-            # tf.keras.layers.BatchNormalization(), #check this at home
             tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
             tf.keras.layers.Dropout(0.25),
             tf.keras.layers.Flatten(),
@@ -143,25 +132,3 @@ AUTOTUNE = tf.data.AUTOTUNE
 
 # Read data
 load_images_char_class(main_path)
-
-# # Convert to tf.data
-# train_dataset = tf.data.Dataset.from_tensor_slices((images, labels))
-
-# # # Prefetch data, shuffle, batch
-# train_dataset = train_dataset.batch(batch_size)
-
-# model.compile(
-#     optimizer=tf.keras.optimizers.RMSprop(),
-#     loss=tf.keras.losses.SparseCategoricalCrossentropy(),
-#     metrics=["accuracy"],
-# )
-
-# # predict (either in batches or not? not sure)
-# predictions = model.predict(train_dataset)
-
-# classes = np.argmax(predictions, axis=1)
-
-# # print prediction to file
-# with open("prediction.txt", "w") as f:
-#     for value in classes:
-#         f.write(get_key(value) + "\n")

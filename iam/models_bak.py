@@ -32,15 +32,19 @@ https://github.com/faustomorales/keras-ocr (This helped a little as well)
 
 
 """
-class HTRModel:
-    def get_preprocessor(self):
-        raise NotImplementedError
 
+class HTRModel:
     def get_adapter(self):
         raise NotImplementedError
 
-    def fit(self, train_generator, val_generator, compilation_params=None,
-            training_params=None, **kwargs):
+    def fit(
+        self,
+        train_generator,
+        val_generator,
+        compilation_params=None,
+        training_params=None,
+        **kwargs
+    ):
         raise NotImplementedError
 
     def predict(self, inputs, **kwargs):
@@ -53,28 +57,22 @@ class HTRModel:
     def load(cls, path):
         raise NotImplementedError
 
-    def save_model_params(self, params_path, model_class_name, model_params, preprocessing_params):
+    def save_model_params(
+        self, params_path, model_class_name, model_params, preprocessing_params
+    ):
         d = {
-            'model_class_name': model_class_name,
-            'params': model_params,
-            'preprocessing': preprocessing_params
+            "model_class_name": model_class_name,
+            "params": model_params,
+            "preprocessing": preprocessing_params,
         }
 
         s = json.dumps(d)
-        with open(params_path, 'w') as f:
+        with open(params_path, "w") as f:
             f.write(s)
 
     @staticmethod
     def create(model_path):
-        params_path = os.path.join(model_path, 'params.json')
-        with open(params_path) as f:
-            s = f.read()
-        d = json.loads(s)
-
-
-        model = CtcModel.load(model_path)
-
-        return model
+        return CtcModel.load(model_path)
 
 
 def create_conv_model(channels=3):
@@ -145,6 +143,7 @@ def create_conv_model(channels=3):
 
     return model
 
+
 class CtcModel(HTRModel):
     def __init__(self, units, num_labels, height, channels=3):
         self._units = units
@@ -154,9 +153,11 @@ class CtcModel(HTRModel):
 
         inp = tf.keras.layers.Input(shape=(height, None, channels))
 
-        lstm = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(units, return_sequences=True))
+        lstm = tf.keras.layers.Bidirectional(
+            tf.keras.layers.LSTM(units, return_sequences=True)
+        )
         densor = tf.keras.layers.TimeDistributed(
-            tf.keras.layers.Dense(units=num_labels + 1, activation='softmax')
+            tf.keras.layers.Dense(units=num_labels + 1, activation="softmax")
         )
 
         x = inp
@@ -165,17 +166,11 @@ class CtcModel(HTRModel):
         x = tf.keras.layers.Dropout(rate=0.5)(x)
         x = lstm(x)
 
-        x = tf.keras.layers.Dropout(rate=0.5)(x)
-        x = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(units, return_sequences=True))(x)
-
-        x = tf.keras.layers.Dropout(rate=0.5)(x)
-        x = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(units, return_sequences=True))(x)
-
-        x = tf.keras.layers.Dropout(rate=0.5)(x)
-        x = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(units, return_sequences=True))(x)
-
-        x = tf.keras.layers.Dropout(rate=0.5)(x)
-        x = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(units, return_sequences=True))(x)
+        for _ in range(4):
+            x = tf.keras.layers.Dropout(rate=0.5)(x)
+            x = tf.keras.layers.Bidirectional(
+                tf.keras.layers.LSTM(units, return_sequences=True)
+            )(x)
 
         x = tf.keras.layers.Dropout(rate=0.5)(x)
         self.y_pred = densor(x)
@@ -186,27 +181,53 @@ class CtcModel(HTRModel):
         self._preprocessing_options = {}
 
     def _create_training_model(self):
+        """
+        Creates a model that is used for training.
+        """
         def ctc_lambda_func(args):
+            """
+            CTC loss function.
+            """
             y_pred, labels, input_length, label_length = args
 
-            return tf.keras.backend.ctc_batch_cost(labels, y_pred, input_length, label_length)
+            return tf.keras.backend.ctc_batch_cost(
+                labels, y_pred, input_length, label_length
+            )
 
-        labels = tf.keras.layers.Input(name='the_labels',
-                                       shape=[None], dtype='float32')
-        input_length = tf.keras.layers.Input(name='input_length', shape=[1], dtype='int64')
-        label_length = tf.keras.layers.Input(name='label_length', shape=[1], dtype='int64')
+        labels = tf.keras.layers.Input(name="the_labels", shape=[None], dtype="float32")
+        input_length = tf.keras.layers.Input(
+            name="input_length", shape=[1], dtype="int64"
+        )
+        label_length = tf.keras.layers.Input(
+            name="label_length", shape=[1], dtype="int64"
+        )
 
         loss_out = tf.keras.layers.Lambda(
-            ctc_lambda_func, output_shape=(1,),
-            name='ctc')([self.y_pred, labels, input_length, label_length])
+            ctc_lambda_func, output_shape=(1,), name="ctc"
+        )([self.y_pred, labels, input_length, label_length])
 
-        return tf.keras.Model(inputs=[self.graph_input, labels, input_length, label_length],
-                              outputs=loss_out)
+        return tf.keras.Model(
+            inputs=[self.graph_input, labels, input_length, label_length],
+            outputs=loss_out,
+        )
 
     def _create_inference_model(self):
+        """
+        Creates a model that is used for inference. This model does not have a CTC loss.
+        """
         return tf.keras.Model(self.graph_input, self.y_pred)
 
-    def fit(self, train_generator, val_generator, compilation_params=None, training_params=None, **kwargs):
+    def fit(
+        self,
+        train_generator,
+        val_generator,
+        compilation_params=None,
+        training_params=None,
+        **kwargs
+    ):
+        """
+        Fits the model to the data.
+        """
         steps_per_epoch = math.ceil(train_generator.size / train_generator.batch_size)
         val_steps = math.ceil(val_generator.size / val_generator.batch_size)
 
@@ -218,77 +239,92 @@ class CtcModel(HTRModel):
         compilation_params = compilation_params or {}
         training_params = training_params or {}
 
-        if 'optimizer' in compilation_params:
-            optimizer = compilation_params['optimizer']
-        else:
-            optimizer = tf.keras.optimizers.Adam(lr=lr)
+        optimizer = tf.keras.optimizers.Adam(lr=lr)
 
-        if 'metrics' in compilation_params:
-            metrics = compilation_params['metrics']
+        if "metrics" in compilation_params:
+            metrics = compilation_params["metrics"]
         else:
             metrics = []
 
         training_model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
-
-        training_model.fit(train_generator.__iter__(), steps_per_epoch=steps_per_epoch,
-                           validation_data=val_generator.__iter__(), validation_steps=val_steps, **training_params)
+        training_model.fit(
+            train_generator.__iter__(),
+            steps_per_epoch=steps_per_epoch,
+            validation_data=val_generator.__iter__(),
+            validation_steps=val_steps,
+            **training_params
+        )
 
     def _get_inference_model(self):
+        """
+        Returns the model that is used for inference.
+        """
         return self._create_inference_model()
 
-    def get_preprocessor(self):
-        preprocessor = Cnn1drnnCtcPreprocessor()
-        preprocessor.configure(**self._preprocessing_options)
-        return preprocessor
-
     def get_adapter(self):
+        """
+        Returns the adapter that is used for inference. This adapter is used to convert the inputs to a format that is compatible with the model.
+        """
         return CTCAdapter()
 
+    # @tf.function
     def predict(self, inputs, **kwargs):
+        """
+        Returns the predictions for the given inputs along with greedy decoding.
+        """
         X, input_lengths = inputs
         ypred = self._get_inference_model().predict(X)
         labels = decode_greedy(ypred, input_lengths)
         return labels
 
     def save(self, path, preprocessing_params):
+        """
+        Saves the model to the given path.
+        """
         if not os.path.exists(path):
             os.mkdir(path)
 
-        params_path = os.path.join(path, 'params.json')
-        weights_path = os.path.join(path, 'weights.h5')
+        params_path = os.path.join(path, "params.json")
+        weights_path = os.path.join(path, "weights.h5")
 
         model_params = dict(
             units=self._units,
             num_labels=self._num_labels,
             height=self._height,
-            channels=self._channels
+            channels=self._channels,
         )
-        self.save_model_params(params_path, 'CtcModel', model_params, preprocessing_params)
+        self.save_model_params(
+            params_path, "CtcModel", model_params, preprocessing_params
+        )
         self._weights_model.save_weights(weights_path)
 
         inference_model = self._get_inference_model()
 
-        inference_model_path = os.path.join(path, 'inference_model.h5')
+        inference_model_path = os.path.join(path, "inference_model.h5")
         inference_model.save(inference_model_path)
 
     @classmethod
     def load(cls, path):
-        params_path = os.path.join(path, 'params.json')
-        weights_path = os.path.join(path, 'weights.h5')
+        """
+        Loads the model from the given path.
+        """
+        params_path = os.path.join(path, "params.json")
+        weights_path = os.path.join(path, "weights.h5")
         with open(params_path) as f:
             s = f.read()
 
         d = json.loads(s)
 
-        params = d['params']
+        params = d["params"]
         instance = cls(**params)
 
         instance._weights_model.load_weights(weights_path)
-        instance._preprocessing_options = d['preprocessing']
+        instance._preprocessing_options = d["preprocessing"]
         return instance
 
     def _get_loss(self):
-        return {'ctc': lambda y_true, y_pred: y_pred}
+        return {"ctc": lambda y_true, y_pred: y_pred}
+
 
 class BatchAdapter:
     """
