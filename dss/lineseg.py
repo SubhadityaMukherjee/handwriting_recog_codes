@@ -359,7 +359,7 @@ def contourSegmentation(image, folderPath):
 
 
 if __name__ == "__main__":
-    imagePaths = importImagePaths(Path("../data/image-data"))
+    imagePaths = importImagePaths(Path("./data/image-data"))
     # Make general lines folder for the output of each image
     if not os.path.exists("lines/"):
         os.makedirs("lines/")
