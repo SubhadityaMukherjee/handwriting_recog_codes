@@ -198,6 +198,7 @@ def oneLineProcessing(img_str, line):
 
     # Getting the bounding boxes from the inverted version of the processed image
     bbox = getBBox(255 - processed)
+    # Sorting the bounding boxes based on their left corner x-coordinate
     bbox.sort()
 
     for i in range(len(bbox)):
@@ -242,5 +243,5 @@ def charSegmentation(imagesPath):
 
 if __name__ == "__main__":
     imagesPath = os.listdir("lines/")
-    print("\n Segmenting Characters:")
+    print("\nSegmenting Characters:")
     charSegmentation(imagesPath)
