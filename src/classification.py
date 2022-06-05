@@ -77,10 +77,10 @@ except:
     print("No model found")
     exit(0)
 try:
-    shutil.rmtree("results/classification")
+    shutil.rmtree("results/")
 except:
     pass
-os.makedirs("results/classification", exist_ok=True)
+os.makedirs("results/", exist_ok=True)
 
 
 def load_images_char_class(linespath):
@@ -121,7 +121,7 @@ def load_images_char_class(linespath):
                 print("Error predicting")
                 continue
 
-        with open(os.path.join("results/classification", root + ".txt"), "w") as f:
+        with open(os.path.join("results/", str(os.path.splitext(root)[0]) + "_characters.txt"), "w") as f:
             f.write("\n".join(extracted))
 
 

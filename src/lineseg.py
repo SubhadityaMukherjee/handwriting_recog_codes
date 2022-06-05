@@ -14,7 +14,7 @@ from utils import *
 
 def importImagePaths(main_path):  # Return the paths to the images
     list_of_binarized_paths = [
-        str(main_path / x) for x in os.listdir(main_path) if "binarized" in x
+        str(main_path / x) for x in os.listdir(main_path) if ".jpg" in x
     ]
     return list_of_binarized_paths
 
