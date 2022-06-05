@@ -2,6 +2,9 @@ import difflib
 
 from tqdm import tqdm
 
+"""
+This module contains the spellchecker module. And uses the Levenshtein distance to check if a word matches a word in the dictionary.
+"""
 
 class SpellCheck:
     # initialization method
@@ -11,6 +14,9 @@ class SpellCheck:
         self.wordlist = self.iam_to_word_dict()
 
     def iam_to_word_dict(self):
+        """
+        This method reads the IAM labels file and returns a dictionary of words.
+        """
         labels = []
         with open(self.labels_path, "r") as f:
             full_text = f.readlines()
@@ -28,6 +34,9 @@ class SpellCheck:
         return labels
 
     def correct(self, string_to_check):
+        """
+        This method checks if a string is in the dictionary. If not, it returns the closest match.
+        """
         string_words = string_to_check.split(" ")
         res = []
         for x in string_words:

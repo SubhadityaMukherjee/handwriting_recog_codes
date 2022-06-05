@@ -27,6 +27,10 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 logging.getLogger("tensorflow").setLevel(logging.CRITICAL)
 logging.getLogger("tensorflow_hub").setLevel(logging.CRITICAL)
 
+"""
+This module contains the main training script.
+"""
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()

@@ -18,8 +18,14 @@ from scipy import ndimage
 from tensorflow.keras.callbacks import Callback
 from tqdm import tqdm
 
+"""
+This module contains utility functions for the IAM dataset.
+"""
 
 class LEREvaluator:
+    """
+    Computes the character error rate (CER) of a given prediction.
+    """
     def __init__(self, model, gen, steps, char_table):
         self._model = model
         self._gen = gen
@@ -27,6 +33,9 @@ class LEREvaluator:
         self._char_table = char_table
 
     def evaluate(self):
+        """
+        Evaluates the model on the test set.
+        """
         scores = []
 
         adapter = self._model.get_adapter()
@@ -52,6 +61,9 @@ class LEREvaluator:
 
 
 class CerCallback(Callback):
+    """
+    Computes the character error rate (CER) of a given prediction as a callback.
+    """
     def __init__(self, char_table, train_gen, val_gen, model, steps=None, interval=10):
         super().__init__()
         self._char_table = char_table
@@ -73,6 +85,9 @@ class CerCallback(Callback):
 
 
 class MyModelCheckpoint(Callback):
+    """
+    Saves the model at an interval.
+    """
     def __init__(self, model, save_path, preprocessing_params):
         super().__init__()
         self._model = model
@@ -84,6 +99,9 @@ class MyModelCheckpoint(Callback):
 
 
 def to_sparse_tensor(sequences):
+    """
+    Converts a list of sequences to a sparse tensor. Which reduces the memory usage.
+    """
     indices = []
     values = []
     max_len = max(len(s) for s in sequences)
@@ -98,12 +116,18 @@ def to_sparse_tensor(sequences):
 
 
 def fill_gaps(labels):
+    """
+    Fills the gaps in the labels which is important for the CTC loss. Without this, the loss failes to compute.
+    """
     for y in labels:
         if len(y) == 0:
             y.append(-1)
 
 
 def compute_edit_distance(y_true, y_pred, normalize=True):
+    """
+    Computes the edit distance between the true and the predicted labels.
+    """
     fill_gaps(y_pred)
 
     sparse_y_true = to_sparse_tensor(y_true)
@@ -112,11 +136,17 @@ def compute_edit_distance(y_true, y_pred, normalize=True):
 
 
 def compute_cer(y_true, y_pred):
+    """
+    Computes the character error rate (CER) of a given prediction.
+    """
     distances = compute_edit_distance(y_true, y_pred, normalize=False)
     return normalize_distances(distances, y_true, y_pred)
 
 
 def normalize_distances(distances, expected_labels, predicted_labels):
+    """
+    Normalizes the distances by the length of the labels.
+    """
     norm_factors = []
     for i, dist in enumerate(distances):
         max_len = max(len(expected_labels[i]), len(predicted_labels[i]))
@@ -129,10 +159,16 @@ def normalize_distances(distances, expected_labels, predicted_labels):
 
 
 def codes_to_string(codes, char_table):
+    """
+    Converts a list of codes to a string.
+    """
     return "".join([char_table.get_character(code) for code in codes])
 
 
 def get_meta_info(path="lines_dataset/train"):
+    """
+    Returns the meta information of the dataset.
+    """
     import json
 
     meta_path = os.path.join(path, "meta.json")
@@ -144,6 +180,9 @@ def get_meta_info(path="lines_dataset/train"):
 
 
 def decode_greedy(inputs, input_lengths):
+    """
+    Decodes the given inputs using the greedy algorithm. Beam search is not used. We tried it though, but it didn't work well. But maybe it will work in the future.
+    """
     with tf.compat.v1.Session() as sess:
         inputs = tf.transpose(inputs, [1, 0, 2])
         decoded, _ = tf.nn.ctc_greedy_decoder(inputs, input_lengths.flatten())
@@ -152,20 +191,10 @@ def decode_greedy(inputs, input_lengths):
         res = sess.run(dense)
         return res
 
-
-def beam_search_decode(inputs, input_lengths):
-    with tf.compat.v1.Session() as sess:
-        inputs = tf.transpose(inputs, [1, 0, 2])
-        decoded, log_probs = tf.nn.ctc_beam_search_decoder(
-            inputs, input_lengths.flatten(), beam_width=10
-        )
-        # print(log_probs)
-        dense = tf.sparse.to_dense(decoded[0])
-        res = sess.run(dense)
-        return res
-
-
 def compute_output_shape(input_shape):
+    """
+    Computes the output shape of the model.
+    """
     height, width, channels = input_shape
     new_width = width // 2 // 2 // 2
     return new_width, 80
