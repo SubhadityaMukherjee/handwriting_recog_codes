@@ -5,8 +5,7 @@ FROM tensorflow/tensorflow:2.2.3-gpu
 ADD requirements.txt .
  
 # Install the requirements.txt
-RUN pip install -r requirements.txt
-RUN pip install pandas IPython python-Levenshtein
+RUN pip install pandas IPython python-Levenshtein albumentations networkx scikit_learn tensorflow_datasets tqdm
  
 # Some common environmenta variables that Python uses
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8

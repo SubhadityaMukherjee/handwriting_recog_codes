@@ -1,5 +1,6 @@
 # Steps to reproduce
-- docker run -i -t group3hwr/hwrproject:1.0.0 bash && cd hwr/
+- docker run -i -t group3hwr/hwrproject:1.0.0 bash 
+- cd hwr/
 ## Task 3 : IAM
 - While you are still in the container, you can run the following commands to reproduce the results.
 - cd /hwr/src/iam
