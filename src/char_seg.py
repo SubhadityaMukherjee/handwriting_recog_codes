@@ -56,7 +56,6 @@ def splitConnectedElements(image, box):
         ratio = int(box[2] / box[3]) + 1
     else:
         ratio = int(box[2] / box[3])
-    # print(box[2]/box[3], ratio)
     if ratio == 2:
         localMinimum = min(projection[(int(box[2] * 0.25)):(int(box[2] * 0.75))])
         splitPoint = (int(box[2] * 0.25)) + \
@@ -65,10 +64,6 @@ def splitConnectedElements(image, box):
             newBoxes.append((box[0], box[1], splitPoint + 3, box[3]))
         if (box[2] - splitPoint) >= 20:
             newBoxes.append((box[0] + splitPoint - 3, box[1], box[2] - splitPoint, box[3]))
-        """
-        cv2.line(copy, ((splitPoint - 2), 0), ((splitPoint - 2), focus.shape[0]),
-                 color=(0, 255, 0),
-                 thickness=6)"""
     elif ratio == 3:
         splitPoint = box[2]
         step = int(box[2] / ratio)
@@ -85,10 +80,6 @@ def splitConnectedElements(image, box):
                     newBoxes.append((box[0] + splitPoint - 3, box[1], prevSplit - splitPoint, box[3]))
                 else:
                     newBoxes.append((box[0] + splitPoint - 3, box[1], prevSplit - splitPoint + 3, box[3]))
-
-            cv2.line(copy, ((splitPoint - 2), 0), ((splitPoint - 2), focus.shape[0]),
-                     color=(0, 255, 0),
-                     thickness=6)
         if splitPoint >= 20:
             newBoxes.append((box[0], box[1], splitPoint + 3, box[3]))
         newBoxes.reverse()
@@ -108,10 +99,6 @@ def splitConnectedElements(image, box):
                     newBoxes.append((box[0] + splitPoint - 3, box[1], prevSplit - splitPoint, box[3]))
                 else:
                     newBoxes.append((box[0] + splitPoint - 3, box[1], prevSplit - splitPoint + 3, box[3]))
-
-            cv2.line(copy, ((splitPoint - 2), 0), ((splitPoint - 2), focus.shape[0]),
-                     color=(0, 255, 0),
-                     thickness=6)
         if splitPoint >= 20:
             newBoxes.append((box[0], box[1], splitPoint + 3, box[3]))
         newBoxes.reverse()
@@ -132,26 +119,16 @@ def splitConnectedElements(image, box):
                     newBoxes.append((box[0] + splitPoint - 3, box[1], prevSplit - splitPoint, box[3]))
                 else:
                     newBoxes.append((box[0] + splitPoint - 3, box[1], prevSplit - splitPoint + 3, box[3]))
-
-            cv2.line(copy, ((splitPoint - 2), 0), ((splitPoint - 2), focus.shape[0]),
-                     color=(0, 255, 0),
-                     thickness=6)
         if splitPoint >= 20:
             newBoxes.append((box[0], box[1], splitPoint + 3, box[3]))
         newBoxes.reverse()
     else:
         newBoxes.append(box)
-    # print(projection, focus.shape, posMin)
-
-    """
-    if not os.path.exists("lines/connected"):
-        os.makedirs("lines/connected")
-    cv2.imwrite("lines/connected/" + str(box[0]) + "--" + str(box[2])+ "--"+ str(box[3]) + ".png", copy)"""
     return newBoxes
 
 
 def cleanBoxes(image, box, bbox):
-    # Bounding box is saved only if it is 15 pixels or bigger
+    # Bounding box is saved only if it is 25 pixels or bigger
     # This eliminates small bounding boxes on noise
     if (box[2] < 25) or (box[3] < 25):
         return
@@ -176,12 +153,10 @@ def cleanBoxes(image, box, bbox):
             if hold:
                 bbox.pop()
                 bbox.append(hold)
-                # print(hold)
             hold = checkMerge(bbox[-1], box)
             if hold:
                 bbox.pop()
                 bbox.append(hold)
-                # print(hold)
         # Following lines merge two bounding boxes, if the current bounding box is inside the previous registered
         # bounding box. A leeway is given, so the current bounding bounding box can be 70% of its width outside the
         # previous bounding box (on the x axis)
@@ -203,9 +178,8 @@ def getBBox(image):
         if hierarchy[0][i][3] == -1:
             box = cv2.boundingRect(poly[i])
             box = cleanBoxes(image, box, bbox)
-            # print(type(box))
+
             if box and (type(box) is tuple):
-                ##print(box)
                 bbox.append(box)
             elif type(box) is list:
                 for item in box:
@@ -234,24 +208,11 @@ def oneLineProcessing(img_str, line):
         )
         focus = img[corner2:(corner2 + corner4), corner1:(corner1+corner3)].copy()
         if focus.any():
-            cv2.imwrite("lines/" + str(img_str) + "/characters/line"+ str(line[:-4]) + "/" + str(i) + ".png", focus)
-            #str(corner1) + "--" + str(corner3) + "--" + str(corner4) + ".png", focus)
-        # print(corner1, corner2, corner3, corner4)
-        """
-        color = list(np.random.random(size=3) * 256)
-        cv2.rectangle(
-            img,
-            (4 * corner1, 4 * corner2),
-            (4 * (corner1 + corner3), 4 * (corner2 + corner4)),
-            color,
-            shift=2,
-            thickness=6,
-        )"""
-
-    # cv2.imwrite("lines/x/3.jpg", img)
-    # cv2.imwrite("lines/x/4.jpg", 255 - processed)
-    #cv2.imwrite("lines/bbox/" + str(img_str[:-4]) + "--" + str(line), img)
-    # cv2.imwrite("lines/bbox/characters/" + str(img_str[:-4]) + "--" + str(line), img)
+            if i <= 9:
+                cv2.imwrite("lines/" + str(img_str) + "/characters/line0"+ str(line[:-4]) + "/" + str(i) + ".png", focus)
+            else:
+                cv2.imwrite("lines/" + str(img_str) + "/characters/line" + str(line[:-4]) + "/" + str(i) + ".png",
+                            focus)
 
 
 def charSegmentation(imagesPath):
