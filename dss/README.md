@@ -11,14 +11,14 @@ Main folder includes:
 **lineseg.py** are segmented into separate characters.
 
 - **classification.py**: by running this script the characters 
-created by **char_seg.py** will be classified
+created by **char_seg.py** will be classified using the model created by **pretraining.py**
 
-- **cleanDataGen.py**:
+- **cleanDataGen.py**: by running this script, training data will be generated from the Habbakuk font which is used for pretraining the CNN in **pretraining.py**
 
 - **lineseg.py**: by running this script images are segmented 
 into separate lines
 
-- **pretraining.py**:
+- **pretraining.py**: by running this script, a CNN is pretrained on the output from **cleanDataGen.py** and trained on the Monkbrill data
 
 - **run_classify.sh**: running this script will run all other
 scripts necessary for performing the classification 
@@ -38,9 +38,9 @@ a new "characters" subfolder will be created. "characters" will have
 subfolders of type "lineXX" (where "XX" represents a number) for each line.
 These folders will include the images of the segmented characters for each line.
 
-- **classification.py**: 
+- **classification.py**: as many output .txt files as there are images in the original data, these .txt files contain the text as recognized by our program. 
 
-- **cleanDataGen.py**:
+- **cleanDataGen.py**: a new folder called "new_data" is created with training data generated from the Habbakuk font. 
 
 - **lineseg.py**: a new "lines" folder is created. The folder contains subfolders 
 named after each image. The subfolders contain the images of the separated lines.
@@ -49,7 +49,12 @@ named after each image. The subfolders contain the images of the separated lines
 
 # Running the scripts
 
-## How to run the classification task
+## How to run the training and classification of the model
+*This should be done when there is no model saved.*
+- ./run_training.sh "folder_with_images"
+
+## How to run the classification task without training 
+*This can be used when you have a previously trained model saved.*
 
 To run dataset from specified folder:
 
@@ -59,9 +64,6 @@ To run default dataset ("data/image-data" required in main folder):
 
 - ./run_classify.sh
 - Results will be present in results/classification/
-
-## How to run the training of the model
-- ./run_training.sh "folder_with_images"
 
 # Requirements
 The **requirements.txt** file includes:
@@ -96,4 +98,4 @@ tqdm==4.64.0
 # Copyright
 Scripts created by:
 
-Subhaditya Mukherjee s4747925 && Isabelle Tilleman && Leonidas Zotos s3396991 && Paul Pintea s3593673
+Subhaditya Mukherjee s4747925 && Isabelle Tilleman s3656586 && Leonidas Zotos s3396991 && Paul Pintea s3593673
