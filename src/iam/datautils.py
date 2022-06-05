@@ -19,6 +19,7 @@ from utilsiam import *
 This file takes care of everything related to the preprocessing of the data, loading the data, and creating the datasets
 """
 
+
 def create_lines_dataset(
     data_source,
     preprocessor,
@@ -57,6 +58,9 @@ def create_lines_dataset(
 
 
 def preprocess_images(source, destination, preprocessor):
+    """
+    This function preprocesses the images in the source folder and saves them in the destination folder.
+    """
 
     shutil.copytree(source, destination)
 
@@ -77,6 +81,9 @@ def extract_lines(
     train_fraction=0.6,
     val_fraction=0.2,
 ):
+    """
+    This function extracts the lines from the data source and saves them in the destination folder. Mostly useful to make the character table. In theory should be fused with line segmentation but that was already done for the dataset
+    """
     dest_to_copier = {}
     dest_texts = {}
 
@@ -127,6 +134,10 @@ def extract_lines(
 
 
 class FileCopier:
+    """
+    Copies the files in the source folder to the destination folder.
+    """
+
     def __init__(self, folder):
         self._folder = folder
         if not os.path.exists(self._folder):
@@ -152,6 +163,9 @@ class FileCopier:
 
 
 def split_examples(example_generator, size, train_fraction=0.6, val_fraction=0.2):
+    """
+    This function splits the examples into train, validation and test. But is a generator function
+    """
     train_folder = "train"
     val_folder = "validation"
     test_folder = "test"
@@ -170,6 +184,9 @@ def split_examples(example_generator, size, train_fraction=0.6, val_fraction=0.2
 
 
 def create_meta_information(dataset_path):
+    """
+    This function creates the meta information file for the dataset. Basically it creates a json file with all the information about the dataset.
+    """
     widths = []
     heights = []
 
@@ -216,6 +233,9 @@ def create_meta_information(dataset_path):
 
 
 def create_char_table(split_folders):
+    """
+    This function creates a character table for the dataset.
+    """
     chars = set()
     for folder in split_folders:
         lines_path = os.path.join(folder, "lines.txt")
@@ -230,6 +250,9 @@ def create_char_table(split_folders):
 
 
 def get_image_array(image_path, target_height):
+    """
+    This function returns the image array for the given image path.
+    """
     img = tf.keras.preprocessing.image.load_img(image_path)
 
     aspect_ratio = img.width / img.height
@@ -246,6 +269,9 @@ def get_image_array(image_path, target_height):
 
 
 def pad_array_width(a, target_width):
+    """
+    This function pads the array with zeros to the target width.
+    """
     width = a.shape[1]
 
     right_padding = target_width - width
@@ -261,11 +287,15 @@ def pad_array_width(a, target_width):
 
 
 def pad_image(img, target_height, target_width):
+    """
+    This function pads the image with zeros to the target height and width.
+    """
     a = tf.keras.preprocessing.image.img_to_array(img)
 
     _, _, original_channels = a.shape
 
-    im = np.ones((target_height, target_width, original_channels), dtype=np.float) * 255
+    im = np.ones((target_height, target_width, original_channels),
+                 dtype=np.float) * 255
 
     cropped = a[:target_height, :target_width]
     for i in range(cropped.shape[0]):
@@ -276,6 +306,9 @@ def pad_image(img, target_height, target_width):
 
 
 def binarize(image_array, threshold=200, invert=True):
+    """
+    This function binarizes the image array. Probably not too useful for this project as the images are already binarized.
+    """
     h, w, channels = image_array.shape
     grayscale = rgb_to_grayscale(image_array)
     black_mask = grayscale < threshold
@@ -293,29 +326,16 @@ def binarize(image_array, threshold=200, invert=True):
 
 
 def rgb_to_grayscale(a):
+    """
+    This function converts the image array to grayscale.
+    """
     return a[:, :, 0] * 0.2125 + a[:, :, 1] * 0.7154 + a[:, :, 2] * 0.0721
 
 
-class BasePreprocessor:
-    def fit(self, train_path, val_path, test_path):
-        pass
-
-    def configure(self, **kwargs):
-        pass
-
-    def process(self, image_path):
-        raise NotImplementedError
-
-    def save(self, path):
-        raise NotImplementedError
-
-    def _save_dict(self, path, d):
-        s = json.dumps(d)
-        with open(path, "w") as f:
-            f.write(s)
-
-
-class Cnn1drnnCtcPreprocessor(BasePreprocessor):
+class Cnn1drnnCtcPreprocessor():
+    """
+    This class preprocesses the images and labels for the CNN-1D-RNN-CTC model.
+    """
     def __init__(self):
         self._average_height = 50
 
@@ -335,13 +355,16 @@ class Cnn1drnnCtcPreprocessor(BasePreprocessor):
         d = {"average_height": self._average_height}
         self._save_dict(path, d)
 
-
-class BaseGenerator:
-    def __iter__(self):
-        raise NotImplementedError
+    def _save_dict(self, path, d):
+        s = json.dumps(d)
+        with open(path, "w") as f:
+            f.write(s)
 
 
 class CompiledDataset:
+    """
+    This class represents a compiled dataset which just has all the data in one place along with some metadata. Also it has a dataset iterator.
+    """
     def __init__(self, dataset_root):
         self._root = dataset_root
         self._lines = []
@@ -376,10 +399,13 @@ class CompiledDataset:
         return image_path, text
 
 
-class LinesGenerator(BaseGenerator):
+class LinesGenerator():
     def __init__(
         self, dataset_root, char_table, batch_size=4, augment=False, batch_adapter=None
     ):
+        """
+        This class generates batches of lines for the CNN-1D-RNN-CTC model.
+        """
         self._root = dataset_root
         self._char_table = char_table
         self._batch_size = batch_size
@@ -426,11 +452,18 @@ class LinesGenerator(BaseGenerator):
             yield image_arrays, labellings
 
     def text_to_class_labels(self, text):
+        """
+        This function converts the text to class labels for a line.
+        """
         return [self._char_table.get_label(ch) for ch in text]
 
     def get_example(self, line_index):
+        """
+        This function returns the image array and the class labels for a line.
+        """
         image_path, text = self._ds.get_example(line_index)
-        img = tf.keras.preprocessing.image.load_img(image_path, color_mode="grayscale")
+        img = tf.keras.preprocessing.image.load_img(
+            image_path, color_mode="grayscale")
         a = tf.keras.preprocessing.image.img_to_array(img)
         x = a / 255.0
         y = self.text_to_class_labels(text)
@@ -438,12 +471,19 @@ class LinesGenerator(BaseGenerator):
 
 
 class CharTable:
+    """
+    This class represents a character table.
+    """
     def __init__(self, char_table_path):
-        self._char_to_label, self._label_to_char = self.load_char_table(char_table_path)
+        self._char_to_label, self._label_to_char = self.load_char_table(
+            char_table_path)
 
-        self._max_label = max(self._label_to_char.keys())
+        self._max_label = max(self._label_to_char.keys())  # This is the maximum number of labels.
 
     def load_char_table(self, path):
+        """
+        This function loads the character table.
+        """
         char_to_label = {}
         label_to_char = {}
         with open(path) as f:
@@ -459,17 +499,20 @@ class CharTable:
         return len(self._char_to_label) + 2
 
     @property
-    def sos(self):
+    def sos(self): #start of string
         return self._max_label + 1
 
     @property
-    def eos(self):
+    def eos(self): #end of string
         return self.sos + 1
 
     def get_label(self, ch):
         return self._char_to_label[ch]
 
     def get_character(self, class_label):
+        """
+        This function returns the character for a class label.
+        """
         if class_label == self.sos:
             return ""
 
@@ -539,18 +582,11 @@ if __name__ == "__main__":
     if not os.path.isdir(destination):
         os.makedirs(destination)
 
-    response = input(
-        "All existing data in the directory {} "
-        "will be erased. Continue (Y/N) ?".format(destination)
+    shutil.rmtree(destination)
+    create_lines_dataset(
+        IAM(),
+        Cnn1drnnCtcPreprocessor(),
+        size=size,
+        train_fraction=0.8,
+        val_fraction=0.1,
     )
-    if response == "Y":
-        shutil.rmtree(destination)
-        create_lines_dataset(
-            IAM(),
-            Cnn1drnnCtcPreprocessor(),
-            size=size,
-            train_fraction=0.8,
-            val_fraction=0.1,
-        )
-    else:
-        pass

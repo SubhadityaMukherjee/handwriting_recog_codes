@@ -19,6 +19,9 @@ from spellcheck import SpellCheck
 
 # from keras.utils.vis_utils import plot_model
 
+"""
+This module contains evaluation functions for the IAM dataset.
+"""
 
 def gridder(images, labels, col=2):
     """
@@ -70,6 +73,7 @@ if __name__ == "__main__":
 
     model_path = "conv_lstm_model"
     if args.evaluate:
+        # Evaluate the model on the test set for both spellcheck and not spellcheck
         folder = "temp_ds/test"
         char_table_path = "char_table_single_im.txt"
         char_table = CharTable(char_table_path)
@@ -98,6 +102,9 @@ if __name__ == "__main__":
         gridder(files[:20], sp_res[:20])
 
     elif args.folder is not None:
+        """
+        Evaluate the model on a given folder for both spellcheck and not spellcheck
+        """
         folder = args.folder
         char_table_path = "char_table_single_im.txt"
         char_table = CharTable(char_table_path)
@@ -123,20 +130,12 @@ if __name__ == "__main__":
                 fle.write(predicted_text)
             return predicted_text
 
-        #
-        # with tqdm(total=l) as pbar:
-        #    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        #        futures = {executor.submit(process_file, arg): arg for arg in files}
-        #        results = {}
-        #        for future in concurrent.futures.as_completed(futures):
-        #            arg = futures[future]
-        #            results[arg] = future.result()
-        #            pbar.update(1)
         results = {fns: process_file(fns) for fns in tqdm(files)}
         print(results)
-        # fnames = dict_outs.keys()
-        # for i, f in tqdm(enumerate(fnames), total=len(fnames)):
     else:
+        """
+        Evaluate the model on a single image
+        """
         dataset_path = args.imagepath
         char_table_path = "char_table_single_im.txt"
         char_table = CharTable(char_table_path)

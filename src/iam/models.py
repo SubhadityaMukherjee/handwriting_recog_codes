@@ -6,7 +6,6 @@ import random
 import subprocess
 from importlib import import_module
 from pathlib import Path
-from tabnanny import verbose
 from xml.etree import ElementTree as ET
 from xml.etree.ElementTree import ParseError
 
@@ -23,6 +22,16 @@ from tqdm import tqdm
 from datautils import *
 from utilsiam import *
 
+"""
+This module contains the model definition and training code.
+References are as follows:
+https://keras.io/examples/vision/handwriting_recognition/ (The model is almost the same. Minor changes. Especially the CTC loss is significantly different.)
+https://github.com/X-rayLaser/keras-cnn-1drnn-ctc (Quite a bit from this one)
+https://github.com/sushant097/Handwritten-Line-Text-Recognition-using-Deep-Learning-with-Tensorflow (Somewhat tried but did not fully work. Helped fix the CTC loss issue)
+https://github.com/faustomorales/keras-ocr (This helped a little as well)
+
+
+"""
 
 class HTRModel:
     def get_adapter(self):
@@ -67,7 +76,13 @@ class HTRModel:
 
 
 def create_conv_model(channels=3):
+    """
+    Creates a convolutional neural network model.
+    """
     def concat(X):
+        """
+        Concatenates the given tensors along the channel dimension.
+        """
         t = tf.keras.layers.Concatenate(axis=1)(tf.unstack(X, axis=3))
         return tf.transpose(t, [0, 2, 1])
 
@@ -124,7 +139,7 @@ def create_conv_model(channels=3):
     model.add(tf.keras.layers.LeakyReLU())
     model.add(tf.keras.layers.BatchNormalization())
 
-    model.add(column_wise_concat)
+    model.add(column_wise_concat) # Concatenate the columns
 
     return model
 
@@ -166,7 +181,13 @@ class CtcModel(HTRModel):
         self._preprocessing_options = {}
 
     def _create_training_model(self):
+        """
+        Creates a model that is used for training.
+        """
         def ctc_lambda_func(args):
+            """
+            CTC loss function.
+            """
             y_pred, labels, input_length, label_length = args
 
             return tf.keras.backend.ctc_batch_cost(
@@ -191,6 +212,9 @@ class CtcModel(HTRModel):
         )
 
     def _create_inference_model(self):
+        """
+        Creates a model that is used for inference. This model does not have a CTC loss.
+        """
         return tf.keras.Model(self.graph_input, self.y_pred)
 
     def fit(
@@ -201,6 +225,9 @@ class CtcModel(HTRModel):
         training_params=None,
         **kwargs
     ):
+        """
+        Fits the model to the data.
+        """
         steps_per_epoch = math.ceil(train_generator.size / train_generator.batch_size)
         val_steps = math.ceil(val_generator.size / val_generator.batch_size)
 
@@ -229,19 +256,31 @@ class CtcModel(HTRModel):
         )
 
     def _get_inference_model(self):
+        """
+        Returns the model that is used for inference.
+        """
         return self._create_inference_model()
 
     def get_adapter(self):
+        """
+        Returns the adapter that is used for inference. This adapter is used to convert the inputs to a format that is compatible with the model.
+        """
         return CTCAdapter()
 
     # @tf.function
     def predict(self, inputs, **kwargs):
+        """
+        Returns the predictions for the given inputs along with greedy decoding.
+        """
         X, input_lengths = inputs
         ypred = self._get_inference_model().predict(X)
         labels = decode_greedy(ypred, input_lengths)
         return labels
 
     def save(self, path, preprocessing_params):
+        """
+        Saves the model to the given path.
+        """
         if not os.path.exists(path):
             os.mkdir(path)
 
@@ -266,6 +305,9 @@ class CtcModel(HTRModel):
 
     @classmethod
     def load(cls, path):
+        """
+        Loads the model from the given path.
+        """
         params_path = os.path.join(path, "params.json")
         weights_path = os.path.join(path, "weights.h5")
         with open(params_path) as f:
@@ -285,6 +327,9 @@ class CtcModel(HTRModel):
 
 
 class BatchAdapter:
+    """
+    Adapter that is used to convert the inputs to a format that is compatible with the model. Data preprocessing is done here.
+    """
     def fit(self, batches):
         pass
 
@@ -292,6 +337,9 @@ class BatchAdapter:
         raise NotImplementedError
 
     def _pad_labellings(self, labellings, target_length, padding_code=0):
+        """
+        Pads the labellings to the target length. Essential for the CTC loss.
+        """
         padded_labellings = []
         for labels in labellings:
             padding_size = target_length - len(labels)
@@ -307,20 +355,32 @@ class BatchAdapter:
         return padded_labellings
 
     def _pad_array_width(self, a, target_width):
+        """
+        Pads the array to the target width. Essential for the CTC loss.
+        """
         return pad_array_width(a, target_width)
 
     def _pad_image_arrays(self, image_arrays, target_width):
+        """
+        Pads the image arrays to the target width. Essential for the CTC loss.
+        """
         return [self._pad_array_width(a, target_width) for a in image_arrays]
 
 
 class CTCAdapter(BatchAdapter):
     def compute_input_lengths(self, image_arrays):
+        """
+        Computes the input lengths for the given image arrays.
+        """
         batch_size = len(image_arrays)
         lstm_input_shapes = [compute_output_shape(a.shape) for a in image_arrays]
         widths = [width for width, channels in lstm_input_shapes]
         return np.array(widths, dtype=np.int32).reshape(batch_size, 1)
 
     def adapt_batch(self, batch):
+        """
+        Adapts the batch to the format that is compatible with the model.
+        """
         image_arrays, labellings = batch
 
         current_batch_size = len(labellings)
@@ -346,6 +406,9 @@ class CTCAdapter(BatchAdapter):
         return [X, labels, input_lengths, label_lengths], labels
 
     def adapt_x(self, image):
+        """
+        Adapts the image to the format that is compatible with the model.
+        """
         a = tf.keras.preprocessing.image.img_to_array(image)
         x = a / 255.0
 
@@ -357,6 +420,9 @@ class CTCAdapter(BatchAdapter):
 
 
 class DebugModelCallback(Callback):
+    """
+    Callback that prints the loss and accuracy of the model during training.
+    """
     def __init__(self, char_table, train_gen, val_gen, attention_model, interval=10):
         super().__init__()
         self._char_table = char_table
@@ -409,6 +475,9 @@ def fit_model(
     augment,
     lr,
 ):
+    """
+    Fits the model to the data.
+    """
     path = Path(train_path)
 
     with open(os.path.join(path.parent, "preprocessing.json")) as f:
@@ -457,6 +526,9 @@ def fit_model(
 
 
 def fit_ctc_model(args):
+    """
+    Fits the CTC model to the data.
+    """
     dataset_path = args.ds
     model_save_path = "conv_lstm_model"
     batch_size = args.batch_size
