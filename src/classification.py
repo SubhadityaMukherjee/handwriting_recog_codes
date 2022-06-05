@@ -58,6 +58,14 @@ def get_key(val):
             return key
     return "Key not found"
 
+def get_hebrew(val):
+    for value, key in hebrewmap.items():
+        if int(val) is int(value):
+            return key
+    return "Key not found"
+
+hebrewmap = {0: 'א ' , 1 : 'ע', 2 : 'ב', 3: 'ד', 4: 'ג', 5: 'ה', 6: 'ח', 7: 'כ', 8: 'ך', 9: 'ל', 10: 'מ', 11: 'ם', 12: 'ן', 13: 'נ',
+            14: 'פ', 15: 'ף', 16: 'ק', 17: 'ר', 18: 'ס', 19: 'ש', 20: 'ת', 21: 'ט', 22: 'ץ', 23: 'צ', 24: 'ו', 25: 'י', 26: 'ז'}
 
 labelmap = {'Alef': 0, 'Ayin': 1, 'Bet': 2, 'Dalet': 3, 'Gimel': 4, 'He': 5, 'Het': 6, 'Kaf': 7, 'Kaf-final': 8, 'Lamed': 9, 'Mem': 10, 'Mem-medial': 11, 'Nun-final': 12, 'Nun-medial': 13,
             'Pe': 14, 'Pe-final': 15, 'Qof': 16, 'Resh': 17, 'Samekh': 18, 'Shin': 19, 'Taw': 20, 'Tet': 21, 'Tsadi-final': 22, 'Tsadi-medial': 23, 'Waw': 24, 'Yod': 25, 'Zayin': 26}
@@ -114,7 +122,7 @@ def load_images_char_class(linespath):
             try:
                 predictions = model.predict(train_dataset)
                 classes = np.argmax(predictions, axis=1)
-                classes = [get_key(x) for x in classes]
+                classes = [get_hebrew(x) for x in classes]
                 extracted.append(" ".join(classes))
 
             except:

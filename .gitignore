@@ -27,3 +27,4 @@ temp_ds
 backup_model
 prediction.txt
 results
+.DS_Store
