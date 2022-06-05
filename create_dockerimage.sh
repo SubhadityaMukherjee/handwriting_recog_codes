@@ -1,1 +1,2 @@
-docker build -t group3hwr/hwrproject:1.0.0 .
+docker build -t msubhaditya/hwr_project:version1 .
+docker push msubhaditya/hwr_project:version1
