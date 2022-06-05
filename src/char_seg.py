@@ -19,7 +19,6 @@ def mergeBoxes(box1, box2):
     holder.append(p2)
     holder.append(p3)
     holder.append(p4)
-    # print(box1, box2)
     holder = tuple(holder)
     return holder
 
@@ -146,7 +145,6 @@ def cleanBoxes(image, box, bbox):
             if hold:
                 bbox.pop()
                 bbox.append(hold)
-                # print(hold)
 
         if len(bbox) >= 1:
             hold = checkMerge(box, bbox[-1])
@@ -167,7 +165,6 @@ def getBBox(image):
     # Getting characters' contours and creating a hierarchy
     cnt, hierarchy = cv2.findContours(image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     poly = [None] * len(cnt)
-    # print(hierarchy, "\n", cnt)
 
     # Declaring bounding box list
     bbox = []
@@ -196,12 +193,12 @@ def oneLineProcessing(img_str, line):
     else:
         if not os.path.exists("lines/" + img_str + "/characters/line" + str(line[:-4])):
             os.makedirs("lines/" + img_str + "/characters/line" + str(line[:-4]))
-    # print(linePath)
     img = cv2.imread(linePath)
     processed = preprocess(img)
 
     # Getting the bounding boxes from the inverted version of the processed image
     bbox = getBBox(255 - processed)
+    bbox.sort()
 
     for i in range(len(bbox)):
         corner1, corner2, corner3, corner4 = (
@@ -228,9 +225,11 @@ def oneLineProcessing(img_str, line):
                                 focus)
 
 
+"""
+
+"""
 def charSegmentation(imagesPath):
     for img in tqdm(imagesPath):
-        print(img)
         if img != ".DS_Store":
             imgPath = os.listdir("lines/" + str(img) + "/")
             for line in imgPath:
@@ -243,4 +242,5 @@ def charSegmentation(imagesPath):
 
 if __name__ == "__main__":
     imagesPath = os.listdir("lines/")
+    print("\n Segmenting Characters:")
     charSegmentation(imagesPath)
