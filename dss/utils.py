@@ -204,6 +204,9 @@ def preprocess(image):
 
     morphErode = cv2.morphologyEx(grayscale, cv2.MORPH_ERODE, maxKernel)
 
+    # Commented morphology procedures were tested,
+    # but proved to yield worse bounding boxes
+    """
     kernelSize = 7
     maxKernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernelSize, kernelSize))
 
@@ -215,7 +218,7 @@ def preprocess(image):
     morphOpen = cv2.morphologyEx(morphErode, cv2.MORPH_OPEN, maxKernel)
 
     # binary = cv2.threshold(morphOpen, 127, 255, cv2.THRESH_BINARY)
-
+    """
     return morphErode
 
 
