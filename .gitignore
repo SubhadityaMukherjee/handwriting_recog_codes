@@ -18,7 +18,7 @@ __pycache__/*
 tags
 data/
 src/data/
-*.h5
+# *.h5
 new_data/
 .venv/
 loss.pdf
@@ -26,3 +26,4 @@ loss.pdf
 temp_ds
 backup_model
 prediction.txt
+results

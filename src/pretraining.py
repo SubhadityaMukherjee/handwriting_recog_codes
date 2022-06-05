@@ -69,7 +69,7 @@ def make_plots(history):
     plt.ylabel("Accuracy")
     plt.xlabel("Epoch")
     plt.legend(["train", "val"], loc="upper left")
-    plt.savefig("accuracy.png", dpi=300)
+    plt.savefig("results/dss_classification_accuracy.png", dpi=300)
     plt.clf()
 
     plt.plot(history.history["loss"])
@@ -78,14 +78,14 @@ def make_plots(history):
     plt.ylabel("Loss")
     plt.xlabel("Epoch")
     plt.legend(["train", "val"], loc="upper left")
-    plt.savefig("loss.png", dpi=300)
+    plt.savefig("results/dss_classification_loss.png", dpi=300)
 
 
 # %%
 # Define defaults
 # TODO: Change to args
 # TODO: switch with new data folde r
-main_path = Path("src/")
+main_path = Path(".")
 dss_path = main_path / "new_data"
 # print(dss_path)
 batch_size = 200
@@ -121,7 +121,6 @@ test_dataset = test_dataset.batch(batch_size)
 #%%
 # Build model
 
-
 model = make_model()
 
 print(model.summary())
@@ -142,13 +141,13 @@ history = model.fit(
 )
 
 # TODO save model
-model.save_weights("pretrained_model.h5")
+model.save_weights("models/pretrained_model.h5")
 
 # TODO get the monkbril data
 # %%
 # load monkbrill data
 
-main_path = Path("data/")
+main_path = Path("../data/")
 dss_path = main_path / "monkbrill"
 # print(dss_path)
 batch_size = 200
@@ -196,7 +195,7 @@ test_dataset = test_dataset.batch(batch_size)
 # make and fit model
 model = make_model()
 
-model.load_weights("pretrained_model.h5")
+model.load_weights("models/pretrained_model.h5")
 
 print(model.summary())
 
@@ -215,7 +214,7 @@ history = model.fit(
     ],
 )
 
-model.save("trained_model.h5")
+model.save("models/trained_model.h5")
 
 make_plots(history)
 

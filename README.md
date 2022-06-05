@@ -1,6 +1,8 @@
 # Steps to reproduce
-- docker run -i -t group3hwr/hwrproject:1.0.0 bash 
+- docker pull msubhaditya/hwr_project
+- docker run -i -t msubhaditya/hwr_project:version1
 - cd hwr/
+- Note: This is not supported on an M1 Mac
 ## Task 3 : IAM
 - While you are still in the container, you can run the following commands to reproduce the results.
 - cd /hwr/src/iam

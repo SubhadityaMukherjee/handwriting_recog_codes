@@ -15,6 +15,9 @@ from tqdm import tqdm
 
 from utilsiam import *
 
+"""
+This file takes care of everything related to the preprocessing of the data, loading the data, and creating the datasets
+"""
 
 def create_lines_dataset(
     data_source,
@@ -23,6 +26,9 @@ def create_lines_dataset(
     train_fraction=0.6,
     val_fraction=0.2,
 ):
+    """
+    This function creates a character table for the dataset. It is used to map characters to indices. This is also stored so we can use it without having to generate it again.
+    """
     destination_folder = "temp_ds"
     temp_folder = os.path.join(destination_folder, "extracted_lines")
 
@@ -35,14 +41,14 @@ def create_lines_dataset(
     preprocessor.fit(train_path, val_path, test_path)
     preprocessor_path = os.path.join(destination_folder, "preprocessing.json")
     preprocessor.save(preprocessor_path)
-
+    # Create preprocessed and split dataset
     split_folders = ["train", "validation", "test"]
-
     for folder in split_folders:
         src_dir = os.path.join(temp_folder, folder)
         dest_dir = os.path.join(destination_folder, folder)
         preprocess_images(src_dir, dest_dir, preprocessor)
 
+    # Create a character table
     char_table_file_name = "character_table.txt"
     char_table_src = os.path.join(temp_folder, char_table_file_name)
     char_table_dest = os.path.join(destination_folder, char_table_file_name)

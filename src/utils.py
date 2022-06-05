@@ -89,6 +89,7 @@ def load_images_to_array_no_label(dss_path):
     return images, labels
 
 
+
 def label_to_dict(labels):
     labelmap = {label: i for i, label in enumerate(np.unique(labels))}
     return labelmap, [labelmap[label] for label in labels]
@@ -139,7 +140,7 @@ def vocabulary_size(y_train):
         train_labels_cleaned.append(label)
         max_len = max(max_len, len(chars))
         chars = []
-    print(train_labels_cleaned[:3])
+    # print(train_labels_cleaned[:3])
 
     print("Maximum length: ", max_len)
     print("Vocab size: ", len(characters))
@@ -293,7 +294,7 @@ class StoreAndProcess:
 
                 # Gather indices where label!= padding_token.
                 label = labels[i]
-                print(label)
+                # print(label)
                 indices = tf.gather(
                     label,
                     tf.where(tf.math.not_equal(label, self.params["padding_token"])),
