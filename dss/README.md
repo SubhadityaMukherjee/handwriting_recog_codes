@@ -96,4 +96,4 @@ tqdm==4.64.0
 # Copyright
 Scripts created by:
 
-Subhaditya Mukherjee && Isabelle Tilleman && Leonidas Zotos s3396991 && Paul Pintea s3593673
+Subhaditya Mukherjee s4747925 && Isabelle Tilleman && Leonidas Zotos s3396991 && Paul Pintea s3593673
