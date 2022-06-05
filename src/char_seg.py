@@ -208,7 +208,7 @@ def oneLineProcessing(img_str, line):
         )
         focus = img[corner2:(corner2 + corner4), corner1:(corner1+corner3)].copy()
         if focus.any():
-            if i <= 9:
+            if int(line[:-4]) <= 9:
                 cv2.imwrite("lines/" + str(img_str) + "/characters/line0"+ str(line[:-4]) + "/" + str(i) + ".png", focus)
             else:
                 cv2.imwrite("lines/" + str(img_str) + "/characters/line" + str(line[:-4]) + "/" + str(i) + ".png",
