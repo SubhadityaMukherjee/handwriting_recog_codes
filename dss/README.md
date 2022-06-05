@@ -42,10 +42,10 @@ These folders will include the images of the segmented characters for each line.
 
 - **cleanDataGen.py**:
 
-- **lineseg.py**: 
+- **lineseg.py**: a new "lines" folder is created. The folder contains subfolders 
+named after each image. The subfolders contain the images of the separated lines.
 
-- **pretraining.py**: a new "lines" folder is created. The folder contains subfolders 
-named after each image. The subfolders contain the images of the separated lines. 
+- **pretraining.py**: 
 
 # Running the scripts
 
