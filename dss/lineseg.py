@@ -2,19 +2,17 @@ import os
 import sys
 from multiprocessing import Pool
 from pathlib import Path
-import argparse
 
 import cv2
 import numpy as np
 from scipy.signal import find_peaks
-from tqdm import tqdm
 
 from utils import *
 
 
 def importImagePaths(main_path):  # Return the paths to the images
     list_of_binarized_paths = [
-        str(main_path / x) for x in os.listdir(main_path) if ".jpg" in x
+        str(main_path / x) for x in os.listdir(main_path) if "binarized" in x
     ]
     return list_of_binarized_paths
 
@@ -361,29 +359,24 @@ def contourSegmentation(image, folderPath):
 
 
 if __name__ == "__main__":
-    ag = argparse.ArgumentParser()
-    ag.add_argument("-f", type=str, help="Path to images", default="../data/image-data/image-data")
-    ag.add_argument("--type", type=int, help="Type of segmentation", default=0)
-    ap = ag.parse_args()
-
-    imagePaths = importImagePaths(Path(ap.f))
+    imagePaths = importImagePaths(Path("../data/image-data"))
     # Make general lines folder for the output of each image
     if not os.path.exists("lines/"):
         os.makedirs("lines/")
 
-    for imageIndex, imagePath in tqdm(enumerate(imagePaths), total = len(imagePaths)):
-        # print(
-        #     "Line Segmentation Progress: "
-        #     + str(int(imageIndex * 100 / len(imagePaths)))
-        #     + "%"
-        # )
+    for imageIndex, imagePath in enumerate(imagePaths):
+        print(
+            "Line Segmentation Progress: "
+            + str(int(imageIndex * 100 / len(imagePaths)))
+            + "%"
+        )
         # Folders will be created inside the general Lines folder
         folderPath = makeImageFolder(str(imagePath))
         # Make the picture black and white and crop it so that only the text is present.
         image = fixRotation(cropImage(blackWhiteDilate(imagePath), 15))
-        if ap.type == 0:
+        if len(sys.argv) == 1 or int(sys.argv[1]) == 0:
             stripeSegmentation(image, folderPath)
-        elif ap.type == 1:
+        elif int(sys.argv[1]) == 1:
             contourSegmentation(image, folderPath)
         else:
             sys.exit("Argument " + "'" + str(sys.argv[1]) + "' not recognised")
