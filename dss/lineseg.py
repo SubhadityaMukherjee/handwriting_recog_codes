@@ -2,42 +2,43 @@ import os
 import sys
 from multiprocessing import Pool
 from pathlib import Path
+import argparse
 
 import cv2
 import numpy as np
 from scipy.signal import find_peaks
+from tqdm import tqdm
 
 from utils import *
 
 
 def importImagePaths(main_path):  # Return the paths to the images
     list_of_binarized_paths = [
-        str(main_path / x) for x in os.listdir(main_path) if "binarized" in x
+        str(main_path / x) for x in os.listdir(main_path) if ".jpg" in x
     ]
     return list_of_binarized_paths
 
-
 # convert picture to black and white and dilate it (making characters fuller)
+
+
 def blackWhiteDilate(imagePath):
     rawImage = cv2.imread(imagePath)
-
-    kernel = np.ones((1, 1), np.uint8)
+    kernel = np.ones((2, 2), np.uint8)
     # Even though we use erosion, the effect is more similar to dilation as the image is not inverted
     dilatedImage = cv2.erode(rawImage, kernel, iterations=1)
-
     (_, processedImage) = cv2.threshold(
-        cv2.cvtColor(dilatedImage, cv2.COLOR_BGR2GRAY), 127, 255, cv2.THRESH_BINARY
+        cv2.cvtColor(
+            dilatedImage, cv2.COLOR_BGR2GRAY), 127, 255, cv2.THRESH_BINARY
     )
-
     return processedImage
 
-
 # Detects if the picture is slanted.
+
+
 def isSlanted(image, threshold=0.125):
     hpp = np.sum(image, axis=1)
     normedHpp = hpp / hpp.mean()
     _, peaksInfo = find_peaks(normedHpp, height=0)
-
     if np.std(peaksInfo["peak_heights"]) < threshold:  # high: normal, low: slanted
         return True
     else:
@@ -48,26 +49,23 @@ def rotate_bound_white(image, angle):
     # Modified imutils.rotate_bound to have a white background
     (h, w) = image.shape[:2]
     (cX, cY) = (w / 2, h / 2)
-
     M = cv2.getRotationMatrix2D((cX, cY), -angle, 1.0)
     cos = np.abs(M[0, 0])
     sin = np.abs(M[0, 1])
-
     # compute the new bounding dimensions of the image
     nW = int((h * sin) + (w * cos))
     nH = int((h * cos) + (w * sin))
-
     # adjust the rotation matrix to take into account translation
     M[0, 2] += (nW / 2) - cX
     M[1, 2] += (nH / 2) - cY
-
     # perform the actual rotation and return the image
     return cv2.warpAffine(
-        image, M, (nW, nH), borderMode=cv2.BORDER_CONSTANT, borderValue=(255, 255, 255)
+        image, M, (nW, nH), borderMode=cv2.BORDER_CONSTANT, borderValue=(
+            255, 255, 255)
     )
-
-
 # Given an image, it tries to remove slanting by rotating it.
+
+
 def fixRotation(image):
     bestImage = image
     stdOfBest = 0
@@ -82,16 +80,14 @@ def fixRotation(image):
             bestImage = tempImage
             stdOfBest = stdOfTemp
     return bestImage
-
-
 # Keep only main text/ delete most white space around the text
+
+
 def cropImage(
     image, threshold=5, all=True, top=False, bottom=False, left=False, right=False
 ):
-
     # Additional boolean arguments are used for croping only specific sides (and requites "all=False").
     rowTopBoundary = rowBotBoundary = colLeftBoundary = colRightBoundary = 0
-
     if all or top:
         height, width = np.shape(image)
         for rowIndex in range(height):  # Remove top white space
@@ -100,7 +96,6 @@ def cropImage(
             else:
                 break
         image = np.delete(image, slice(0, rowTopBoundary), 0)
-
     if all or bottom:
         height, width = np.shape(image)
         for rowIndex in range(height):  # Remove bottom white space
@@ -109,7 +104,6 @@ def cropImage(
             else:
                 break
         image = np.delete(image, slice(height - rowBotBoundary, height), 0)
-
     if all or left:
         height, width = np.shape(image)
         for colIndex in range(width):  # Remove left white space
@@ -118,7 +112,6 @@ def cropImage(
             else:
                 break
         image = np.delete(image, slice(0, colLeftBoundary), 1)
-
     if all or right:
         height, width = np.shape(image)
         for colIndex in range(width):  # Remove right white space
@@ -127,18 +120,13 @@ def cropImage(
             else:
                 break
         image = np.delete(image, slice(width - colRightBoundary, width), 1)
-
     return image
-
-
 # Make a folder for the lines of an image, and return the specific folder path of the current image
 def makeImageFolder(folderName):
     specificFolderPath = os.path.basename(folderName)
     if not os.path.exists("lines/" + specificFolderPath):
         os.makedirs("lines/" + specificFolderPath)
     return specificFolderPath
-
-
 # Returns an array with the stripes and the blocks in each stripe.
 # tshPLow and tshPHigh determine the threshold for low and high density images respectively
 # A higher threshold leads to more lines.
@@ -161,14 +149,13 @@ def createStripesAndBlocks(
     density = np.count_nonzero(image == 0) / np.count_nonzero(image == 255)
     threshold = 0
     if (
-        density >= 0.12
-    ):  # 0.12 experimentally found for dilation (1, 1). For dilation (2, 2) use 0.15
+        density >= 0.15
+    ):  # 0.12 experimentally found. For dilation (2, 2) use 0.15
         # depending on resolution and density, use different threshold
         threshold = width / (tshPHigh * 10)
     else:
         # depending on resolution and density, use different threshold
         threshold = width / (tshPLow * 10)
-
     stripeWidth = width // numOfStripes
     stripesArr = np.empty((numOfStripes, height, stripeWidth))
     # used later to see if the padding should be at the top or bottom of the stripe (so that alignment with other stripes is correct). 0 for bottom padding, 1 for top padding
@@ -186,7 +173,6 @@ def createStripesAndBlocks(
     allBlocks = np.full(
         (numOfStripes, maxNumOfBlocks, maxRowsPerBlock, stripeWidth), 255
     )
-
     # Cut Stripe into blocks:
     for stripe in range(numOfStripes):
         currentBlock = 0
@@ -203,12 +189,9 @@ def createStripesAndBlocks(
                     currentBlock += 1
                     currentRowInBlock = 0
     return allBlocks, padLocations
-
-
 # Deals with over/under segmentation of vertical blocks. Also removes blank space at the bottom of each block.
 def overUnderSegmentation(stripesAndBlocks):
     adjustedStripesAndBlocks = []
-
     for stripeIndex, stripe in enumerate(stripesAndBlocks):
         blocksOfStripe = []
         averageBlockHeight = 0
@@ -217,12 +200,10 @@ def overUnderSegmentation(stripesAndBlocks):
             # More than 20 black pixels to be considered a text line block.
             if np.count_nonzero(cleanBlock == 0) > 50:
                 blocksOfStripe.append(cleanBlock)
-
         averageBlockHeight = 0
         for block in blocksOfStripe:
             averageBlockHeight += len(block)
         averageBlockHeight /= len(blocksOfStripe)
-
         # Deal with Over-segmentation:
         blockIndex = 0
         while blockIndex < (len(blocksOfStripe)):
@@ -241,13 +222,11 @@ def overUnderSegmentation(stripesAndBlocks):
                 del blocksOfStripe[blockIndex]
                 blockIndex -= 1
             blockIndex += 1
-
-        # Re-calculate average line height after deadline with Over-segmentation
+        # Re-calculate average line height after dealing with Over-segmentation
         averageBlockHeight = 0
         for block in blocksOfStripe:
             averageBlockHeight += len(block)
         averageBlockHeight /= len(blocksOfStripe)
-
         # Deal with Under-segmentation:
         # Assumption: Up to two lines are segmented together.
         blockIndex = 0
@@ -260,12 +239,9 @@ def overUnderSegmentation(stripesAndBlocks):
                 blocksOfStripe.insert(blockIndex, firstHalf)
                 blocksOfStripe.insert(blockIndex + 1, secondHalf)
             blockIndex += 1
-
         # Now create a new array with the adjusted blocks:
         adjustedStripesAndBlocks.insert(stripeIndex, blocksOfStripe)
     return adjustedStripesAndBlocks
-
-
 # Make sure all blocks and stripes are of the same size by filling with blank space.
 def standardiseBlocks(stripesAndBlocks, padLocations):
     maxNumberOfBlocks = 0
@@ -277,7 +253,6 @@ def standardiseBlocks(stripesAndBlocks, padLocations):
         for block in stripe:
             if len(block) > maxNumberOfRowsPerBlock:
                 maxNumberOfRowsPerBlock = len(block)
-
     standardisedBlocks = np.full(
         (len(stripesAndBlocks), maxNumberOfBlocks, maxNumberOfRowsPerBlock, blockWidth),
         255,
@@ -299,10 +274,7 @@ def standardiseBlocks(stripesAndBlocks, padLocations):
                 standardisedBlocks[stripeIndex][blockIndex + heightDifference][
                     0:blockHeight, 0:blockWidth
                 ] = block
-
     return standardisedBlocks
-
-
 # Concatenates blocks and exports the lines to their folder.
 def concatBlocksAndExport(stripesAndBlocks, exportPath):
     numOfStripes = len(stripesAndBlocks)
@@ -313,14 +285,10 @@ def concatBlocksAndExport(stripesAndBlocks, exportPath):
             concatenatedBlock = np.concatenate(
                 (concatenatedBlock, stripesAndBlocks[stripe + 1, textLine]), axis=1
             )
-
         linePath = "lines/" + exportPath
         nameOfOutput = str(textLine) + ".png"
         cv2.imwrite(os.path.join(linePath, nameOfOutput), concatenatedBlock)
-
     return stripesAndBlocks
-
-
 def stripeSegmentation(image, folderPath):
     # Splits the image into stripes and blocks per stripe
     stripesAndBlocks, padLocations = createStripesAndBlocks(image)
@@ -337,19 +305,15 @@ def contourSegmentation(image, folderPath):
     kernel = np.ones((5, 100), np.uint8)
     # 5,100 for line, 5.5 for character
     img_dilation = cv2.dilate(image, kernel, iterations=1)
-
     # find contours
     ctrs, _ = cv2.findContours(
         img_dilation.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
     )
-
     # sort contours
     sorted_ctrs = sorted(ctrs, key=lambda ctr: cv2.boundingRect(ctr)[0])
-
     for i, ctr in enumerate(sorted_ctrs):
         # Get bounding box
         x, y, w, h = cv2.boundingRect(ctr)
-
         # Getting ROI
         roi = image[y : y + h, x : x + w]
         linePath = "lines/" + folderPath
@@ -359,26 +323,30 @@ def contourSegmentation(image, folderPath):
 
 
 if __name__ == "__main__":
-    imagePaths = importImagePaths(Path("./data/image-data"))
+    ag = argparse.ArgumentParser()
+    ag.add_argument("-f", type=str, help="Path to images", default="../data/image-data/image-data")
+    ag.add_argument("--type", type=int, help="Type of segmentation", default=0)
+    ap = ag.parse_args()
+
+    imagePaths = importImagePaths(Path(ap.f))
     # Make general lines folder for the output of each image
     if not os.path.exists("lines/"):
         os.makedirs("lines/")
 
-    for imageIndex, imagePath in enumerate(imagePaths):
-        print(
-            "Line Segmentation Progress: "
-            + str(int(imageIndex * 100 / len(imagePaths)))
-            + "%"
-        )
+    for imageIndex, imagePath in tqdm(enumerate(imagePaths), total = len(imagePaths)):
         # Folders will be created inside the general Lines folder
         folderPath = makeImageFolder(str(imagePath))
         # Make the picture black and white and crop it so that only the text is present.
+        cv2.imwrite("original.jpg", cv2.imread(imagePath))
+        cv2.imwrite("bwd.jpg", blackWhiteDilate(imagePath))
+        cv2.imwrite("croped.jpg", cropImage(blackWhiteDilate(imagePath), 15))
+        cv2.imwrite("rotated.jpg", fixRotation(cropImage(blackWhiteDilate(imagePath), 15)))
         image = fixRotation(cropImage(blackWhiteDilate(imagePath), 15))
-        if len(sys.argv) == 1 or int(sys.argv[1]) == 0:
+        if ap.type == 0:
             stripeSegmentation(image, folderPath)
-        elif int(sys.argv[1]) == 1:
+        elif ap.type == 1:
             contourSegmentation(image, folderPath)
         else:
             sys.exit("Argument " + "'" + str(sys.argv[1]) + "' not recognised")
-
+  
     print("Line Segmentation Complete!")
